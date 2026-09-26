@@ -1,0 +1,321 @@
+{
+  "projects": [
+    {
+      "id": "DESC_1",
+      "utility": "Dominion Energy South Carolina",
+      "state": "SC",
+      "name": "Stevens Creek - Hooks 115 kV / LR Plumb Branch 46 kV Rebuilds",
+      "endpointA": {
+        "label": "Stevens Creek Sub",
+        "lat": 33.562599,
+        "lon": -82.051362
+      },
+      "endpointB": {
+        "label": "Hooks Sub",
+        "lat": null,
+        "lon": null
+      },
+      "center": {
+        "lat": 33.562599,
+        "lon": -82.051362
+      },
+      "inServiceDate": "12/31/2024",
+      "overlapCount": 1,
+      "overlapProjectIds": [
+        "GPC_1"
+      ]
+    },
+    {
+      "id": "DESC_2",
+      "utility": "Dominion Energy South Carolina",
+      "state": "SC",
+      "name": "Hooks - Thurmond 115 kV Tie: Rebuild",
+      "endpointA": {
+        "label": "Hooks Sub",
+        "lat": null,
+        "lon": null
+      },
+      "endpointB": {
+        "label": "Thurmond Sub",
+        "lat": 33.660127,
+        "lon": -82.195931
+      },
+      "center": {
+        "lat": 33.660127,
+        "lon": -82.195931
+      },
+      "inServiceDate": "12/31/2024",
+      "overlapCount": 1,
+      "overlapProjectIds": [
+        "GPC_1"
+      ]
+    },
+    {
+      "id": "DESC_3",
+      "utility": "Dominion Energy South Carolina",
+      "state": "SC",
+      "name": "Jasper - Okatie 230 kV #2: Construct",
+      "endpointA": {
+        "label": "Jasper Sub",
+        "lat": 32.35912,
+        "lon": -81.1246
+      },
+      "endpointB": {
+        "label": "Okatie Sub",
+        "lat": 32.333758,
+        "lon": -81.032495
+      },
+      "center": {
+        "lat": 32.346439000000004,
+        "lon": -81.0785475
+      },
+      "inServiceDate": "12/31/2025",
+      "overlapCount": 2,
+      "overlapProjectIds": [
+        "GPC_2",
+        "GPC_3"
+      ]
+    },
+    {
+      "id": "DESC_4",
+      "utility": "Dominion Energy South Carolina",
+      "state": "SC",
+      "name": "Queensboro - Ft Johnson 115 kV & Queensboro-Bayfront 115 kV (Queensboro-James Island Sect)",
+      "endpointA": {
+        "label": "Queensboro Sub",
+        "lat": 32.722793,
+        "lon": -79.967332
+      },
+      "endpointB": {
+        "label": "Ft Johnson Sub",
+        "lat": null,
+        "lon": null
+      },
+      "center": {
+        "lat": 32.722793,
+        "lon": -79.967332
+      },
+      "inServiceDate": "12/31/2023",
+      "overlapCount": 0,
+      "overlapProjectIds": []
+    },
+    {
+      "id": "DESC_5",
+      "utility": "Dominion Energy South Carolina",
+      "state": "SC",
+      "name": "Okatie-Bluffton 115 kV: Rebuild",
+      "endpointA": {
+        "label": "Okatie Sub",
+        "lat": 32.333758,
+        "lon": -81.032495
+      },
+      "endpointB": {
+        "label": "Bluffton Sub",
+        "lat": 32.235027,
+        "lon": -80.853384
+      },
+      "center": {
+        "lat": 32.2843925,
+        "lon": -80.9429395
+      },
+      "inServiceDate": "2025-06-01",
+      "overlapCount": 2,
+      "overlapProjectIds": [
+        "GPC_2",
+        "GPC_3"
+      ]
+    },
+    {
+      "id": "GPC_1",
+      "utility": "Georgia Power",
+      "state": "GA",
+      "name": "EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD",
+      "endpointA": {
+        "label": "EVANS PRIMARY",
+        "lat": 33.543994,
+        "lon": -82.168648
+      },
+      "endpointB": {
+        "label": "THURMOND DAM #5",
+        "lat": 33.660127,
+        "lon": -82.195931
+      },
+      "center": {
+        "lat": 33.6020605,
+        "lon": -82.1822895
+      },
+      "inServiceDate": "6/1/2033",
+      "overlapCount": 2,
+      "overlapProjectIds": [
+        "DESC_2",
+        "DESC_1"
+      ]
+    },
+    {
+      "id": "GPC_2",
+      "utility": "Georgia Power",
+      "state": "GA",
+      "name": "SAV: MCINTOSH - PURRYSBURG 230KV REACTORS",
+      "endpointA": {
+        "label": "MCINTOSH",
+        "lat": 32.352116,
+        "lon": -81.175112
+      },
+      "endpointB": {
+        "label": "PURRYSBURG",
+        "lat": null,
+        "lon": null
+      },
+      "center": {
+        "lat": 32.352116,
+        "lon": -81.175112
+      },
+      "inServiceDate": "6/1/2026",
+      "overlapCount": 2,
+      "overlapProjectIds": [
+        "DESC_3",
+        "DESC_5"
+      ]
+    },
+    {
+      "id": "GPC_3",
+      "utility": "Georgia Power",
+      "state": "GA",
+      "name": "SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD",
+      "endpointA": {
+        "label": "GOSHEN",
+        "lat": 32.248701,
+        "lon": -81.209472
+      },
+      "endpointB": {
+        "label": "MCINTOSH",
+        "lat": 32.352116,
+        "lon": -81.182105
+      },
+      "center": {
+        "lat": 32.3004085,
+        "lon": -81.1957885
+      },
+      "inServiceDate": "6/1/2027",
+      "overlapCount": 2,
+      "overlapProjectIds": [
+        "DESC_3",
+        "DESC_5"
+      ]
+    },
+    {
+      "id": "GPC_4",
+      "utility": "Georgia Power",
+      "state": "GA",
+      "name": "MITCHELL - NORTH TIFTON 230KV RECONDUCTOR",
+      "endpointA": {
+        "label": "Mitchell Substation",
+        "lat": 31.447121,
+        "lon": -84.133843
+      },
+      "endpointB": {
+        "label": "North Tifton Substation",
+        "lat": 31.478089,
+        "lon": -83.54913
+      },
+      "center": {
+        "lat": 31.462605,
+        "lon": -83.8414865
+      },
+      "inServiceDate": "2025-05-01",
+      "overlapCount": 0,
+      "overlapProjectIds": []
+    },
+    {
+      "id": "GPC_5",
+      "utility": "Georgia Power",
+      "state": "GA",
+      "name": "JESUP - LUDOWICI PRIMARY 115KV REBUILD",
+      "endpointA": {
+        "label": "JESUP",
+        "lat": 31.603106,
+        "lon": -81.924947
+      },
+      "endpointB": {
+        "label": "LUDOWICI PRIMARY",
+        "lat": 31.721597,
+        "lon": -81.743703
+      },
+      "center": {
+        "lat": 31.6623515,
+        "lon": -81.834325
+      },
+      "inServiceDate": "6/1/2025",
+      "overlapCount": 0,
+      "overlapProjectIds": []
+    }
+  ],
+  "overlaps": [
+    {
+      "id": "OVL_1",
+      "distanceMi": 4.09,
+      "timeGapDays": 3074,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_2",
+      "projectNameA": "Hooks - Thurmond 115 kV Tie: Rebuild",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_1",
+      "projectNameB": "EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD"
+    },
+    {
+      "id": "OVL_2",
+      "distanceMi": 5.65,
+      "timeGapDays": 152,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_3",
+      "projectNameA": "Jasper - Okatie 230 kV #2: Construct",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_2",
+      "projectNameB": "SAV: MCINTOSH - PURRYSBURG 230KV REACTORS"
+    },
+    {
+      "id": "OVL_3",
+      "distanceMi": 7.55,
+      "timeGapDays": 517,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_3",
+      "projectNameA": "Jasper - Okatie 230 kV #2: Construct",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_3",
+      "projectNameB": "SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD"
+    },
+    {
+      "id": "OVL_4",
+      "distanceMi": 8.01,
+      "timeGapDays": 3074,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_1",
+      "projectNameA": "Stevens Creek - Hooks 115 kV / LR Plumb Branch 46 kV Rebuilds",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_1",
+      "projectNameB": "EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD"
+    },
+    {
+      "id": "OVL_5",
+      "distanceMi": 14.34,
+      "timeGapDays": 365,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_5",
+      "projectNameA": "Okatie-Bluffton 115 kV: Rebuild",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_2",
+      "projectNameB": "SAV: MCINTOSH - PURRYSBURG 230KV REACTORS"
+    },
+    {
+      "id": "OVL_6",
+      "distanceMi": 14.81,
+      "timeGapDays": 730,
+      "utilityA": "Dominion Energy South Carolina",
+      "projectIdA": "DESC_5",
+      "projectNameA": "Okatie-Bluffton 115 kV: Rebuild",
+      "utilityB": "Georgia Power",
+      "projectIdB": "GPC_3",
+      "projectNameB": "SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD"
+    }
+  ]
+}
