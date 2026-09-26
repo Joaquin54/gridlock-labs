@@ -1,28 +1,46 @@
-import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
-  getAllOverlaps,
-  getAllProjects,
-  getDashboardSummary,
-  utilityShortLabel,
-} from "../../data/repository";
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   getAllReviewQueuePoints,
+  getBorderBreakdown,
   getGeocodeDashboardSummary,
+  getLineMilesBuckets,
+  getRegionByUtility,
   getReviewQueueChartData,
   getReviewQueuePrioritySample,
+  getUniqueProjectCountsByUtility,
+  getUtilitySplit,
+  getVoltageBreakdown,
+  getWorkTypeBreakdown,
 } from "../../data/geocodeRepository";
-import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
 import {
-  CLS_DASHBOARD_PANEL_HEADER,
-  CLS_DASHBOARD_PANEL_SHELL,
-  CLS_PANEL_ITEM,
-  CLS_PANEL_ITEM_INTERACTIVE,
-  CLS_PANEL_ITEM_META,
-} from "../../utils/chartStyles";
+  getAllProjects,
+  getDashboardSummary,
+  getRankedCoordinationOpportunities,
+  utilityShortLabel,
+} from "../../data/repository";
+import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
+import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
-import { formatCoord, formatCount, formatDateLabel, formatMiles, formatPercent } from "../../utils/format";
+import {
+  formatCoord,
+  formatCount,
+  formatDateLabel,
+  formatMiles,
+  formatPercent,
+} from "../../utils/format";
 import ConfidenceBadge from "../shared/ConfidenceBadge";
 import StatCard from "../shared/StatCard";
 import TaskBadge from "../shared/TaskBadge";
@@ -45,37 +63,21 @@ const CHART_TOOLTIP_STYLE = {
 export default function Dashboard() {
   const navigate = useNavigate();
   const projects = getAllProjects();
-  const overlaps = getAllOverlaps();
   const summary = getDashboardSummary();
   const geocodeSummary = getGeocodeDashboardSummary();
   const geocodeCharts = getReviewQueueChartData();
   const geocodePoints = getAllReviewQueuePoints();
   const reviewPriority = getReviewQueuePrioritySample(14);
 
-  const utilityChartData = useMemo(
-    () => [
-      { name: "Dominion", count: summary.dominionProjects, fill: "var(--dominion)" },
-      { name: "Georgia Power", count: summary.georgiaProjects, fill: "var(--georgia)" },
-    ],
-    [summary.dominionProjects, summary.georgiaProjects],
-  );
-
-  const overlapByProject = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const o of overlaps) {
-      counts.set(o.projectIdA, (counts.get(o.projectIdA) ?? 0) + 1);
-      counts.set(o.projectIdB, (counts.get(o.projectIdB) ?? 0) + 1);
-    }
-    return projects
-      .filter((p) => (counts.get(p.id) ?? 0) > 0)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        overlaps: counts.get(p.id) ?? 0,
-        utilityKey: p.utilityKey,
-      }))
-      .sort((a, b) => b.overlaps - a.overlaps);
-  }, [overlaps, projects]);
+  const rankedOpportunities = getRankedCoordinationOpportunities();
+  const voltageData = getVoltageBreakdown();
+  const workTypeData = getWorkTypeBreakdown();
+  const borderData = getBorderBreakdown();
+  const milesBuckets = getLineMilesBuckets();
+  const utilitySplit = getUtilitySplit();
+  const regionByUtility = getRegionByUtility();
+  const uniqueByUtility = getUniqueProjectCountsByUtility();
+  const borderProjectCount = borderData[0]?.value ?? 0;
 
   return (
     <div className="flex w-full flex-col px-6 py-[1.1rem] max-[900px]:px-3 max-[900px]:py-3">
@@ -84,143 +86,343 @@ export default function Dashboard() {
           Project Overlap Dashboard
         </h1>
         <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
-          Dominion Energy (South Carolina) and Georgia Power transmission projects — spatial and
-          schedule overlap from the pilot dataset, plus a geocode review queue from Dominion
-          2024–2028 project listings (coordinates still being verified).
+          Full GPC + Dominion SC portfolio from project listings and the geocode review queue (
+          {formatCount(geocodeSummary.totalPoints)} location points). Pilot overlap analysis (
+          {formatCount(summary.totalProjects)} curated projects,{" "}
+          {formatCount(summary.totalOverlaps)} pairs) is summarized in the ranked table below.
         </p>
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
-        <StatCard label="Projects tracked" value={formatCount(summary.totalProjects)} />
+      <div className="mb-2 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
+        <StatCard label="Unique projects" value={formatCount(geocodeSummary.uniqueProjects)} />
+        <StatCard label="Location points" value={formatCount(geocodeSummary.totalPoints)} />
         <StatCard
-          label="Cross-utility overlaps"
-          value={formatCount(summary.totalOverlaps)}
+          label="Points on map"
+          value={formatCount(geocodeSummary.withCoordinates)}
           accent="green"
         />
+        <StatCard label="Mapped coverage" value={formatPercent(geocodeSummary.locatedPct, 1)} />
+      </div>
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
         <StatCard
-          label="Dominion (SC)"
-          value={formatCount(summary.dominionProjects)}
+          label="Georgia Power projects"
+          value={formatCount(uniqueByUtility.gpc)}
+          accent="georgia"
+        />
+        <StatCard
+          label="Dominion (SC) projects"
+          value={formatCount(uniqueByUtility.desc)}
           accent="dominion"
         />
         <StatCard
-          label="Georgia Power"
-          value={formatCount(summary.georgiaProjects)}
-          accent="georgia"
+          label="Border-area projects"
+          value={formatCount(borderProjectCount)}
+          accent="dominion"
+        />
+        <StatCard
+          label="Pilot cross-utility overlaps"
+          value={formatCount(summary.totalOverlaps)}
+          accent="green"
         />
       </div>
 
       <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
-        <RegionalProjectMap
-          projects={projects}
-          onSelectProject={(id) => navigate(`/projects/${id}`)}
-        />
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[310px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Projects by utility</div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={utilityChartData} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="name"
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--border)" }}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 12 }}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 12 }}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--surface-hover)" }}
-                  contentStyle={{
-                    background: "var(--surface)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-md)",
-                    boxShadow: "var(--shadow-md)",
-                    fontSize: "0.8125rem",
-                  }}
-                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
-                />
-                <Bar dataKey="count" maxBarSize={72} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
+        <RegionalProjectMap geocodePoints={geocodePoints} title="SC & GA portfolio footprint" />
+        <div className="flex min-h-[310px] flex-col gap-3">
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
+            <div className="min-h-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={utilitySplit}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="42%"
+                    outerRadius="68%"
+                    paddingAngle={3}
+                    strokeWidth={0}
+                  >
+                    {utilitySplit.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(value) => [
+                      `${value} points (${((Number(value) / geocodeSummary.totalPoints) * 100).toFixed(1)}%)`,
+                    ]}
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    height={28}
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Points by region</div>
+            <div className="min-h-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="region"
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 9 }}
+                    interval={0}
+                    tickFormatter={(v: string) => regionLabel(v).split(" ")[0]}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    width={28}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelFormatter={(label) => regionLabel(String(label))}
+                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    height={20}
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: "0.65rem", color: "var(--text-secondary)" }}
+                  />
+                  <Bar dataKey="gpc" name="GPC" stackId="a" fill="var(--georgia)" maxBarSize={32} />
+                  <Bar
+                    dataKey="desc"
+                    name="Dominion"
+                    stackId="a"
+                    fill="var(--dominion)"
+                    maxBarSize={32}
+                    radius={[4, 4, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </div>
       </div>
 
-      <div className="mt-[0.85rem] grid grid-cols-1 items-start gap-[0.85rem] xl:grid-cols-2">
-        <section className={CLS_DASHBOARD_PANEL_SHELL}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Recent overlap pairs</div>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {overlaps.map((o) => (
-              <li key={o.id} className={CLS_PANEL_ITEM}>
-                <div className={CLS_PANEL_ITEM_META}>
-                  <span>{o.id}</span>
-                  <span className="text-border-strong" aria-hidden>
-                    ·
-                  </span>
-                  <span>{formatMiles(o.distanceMi)}</span>
-                </div>
-                <p className="m-0 mt-1.5 text-[0.8125rem] leading-snug">
-                  <button
-                    type="button"
-                    className="cursor-pointer border-none bg-transparent p-0 text-left font-medium text-accent-text hover:underline"
-                    onClick={() => navigate(`/projects/${o.projectIdA}`)}
+      {/* ── Ranked coordination opportunities ── */}
+      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-6")}>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>Top coordination opportunities — ranked</div>
+        <p className="m-0 mb-3 max-w-4xl text-[0.8125rem] leading-snug text-text-secondary">
+          Each cross-utility overlap is scored 0–100 based on spatial proximity (closer = better ROW
+          sharing) and schedule alignment (overlapping timelines = joint construction savings). The
+          top-ranked pair includes a rough cost/impact estimate.
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[0.8125rem]">
+            <thead>
+              <tr className="border-b-2 border-border-strong text-left">
+                <th className={CLS_TH}>Rank</th>
+                <th className={CLS_TH}>Score</th>
+                <th className={CLS_TH}>Opportunity type</th>
+                <th className={CLS_TH}>Dominion project</th>
+                <th className={CLS_TH}>Georgia Power project</th>
+                <th className={cn(CLS_TH, "text-right")}>Distance</th>
+                <th className={cn(CLS_TH, "text-right")}>Time gap</th>
+                <th className={cn(CLS_TH, "text-right")}>Est. savings</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rankedOpportunities.map((opp) => (
+                <tr
+                  key={opp.overlap.id}
+                  className={cn(
+                    "border-b border-border last:border-b-0",
+                    opp.rank === 1 && "bg-green-light/50",
+                  )}
+                >
+                  <td className={cn(CLS_TD, "text-center")}>
+                    <span
+                      className={cn(
+                        "inline-flex h-5 w-5 items-center justify-center rounded-full font-mono text-[0.6875rem] font-bold",
+                        opp.rank === 1
+                          ? "bg-green text-white"
+                          : opp.rank <= 3
+                            ? "bg-accent-light text-accent-text"
+                            : "bg-surface-hover text-text-muted",
+                      )}
+                    >
+                      {opp.rank}
+                    </span>
+                  </td>
+                  <td className={CLS_TD}>
+                    <div className="flex items-center gap-1.5">
+                      <div className="h-2 w-12 overflow-hidden rounded-full bg-surface-hover">
+                        <div
+                          className="h-full rounded-full bg-green transition-all"
+                          style={{ width: `${opp.score}%` }}
+                        />
+                      </div>
+                      <span className="font-mono text-[0.6875rem] font-semibold text-text-primary">
+                        {opp.score}
+                      </span>
+                    </div>
+                  </td>
+                  <td className={CLS_TD}>
+                    <span
+                      className={cn(
+                        "inline-flex items-center whitespace-nowrap rounded-full border px-[0.45rem] py-[0.12rem] font-sans text-[10px] font-medium tracking-[0.01em]",
+                        opp.type === "Joint construction"
+                          ? "border-green/30 bg-green-light text-green"
+                          : opp.type === "Shared ROW"
+                            ? "border-accent/30 bg-accent-light text-accent-text"
+                            : opp.type === "Shared substation"
+                              ? "border-dominion/30 bg-dominion-light text-dominion"
+                              : "border-border bg-surface-hover text-text-muted",
+                      )}
+                    >
+                      {opp.type}
+                    </span>
+                  </td>
+                  <td className={cn(CLS_TD, "max-w-[10rem] truncate text-text-primary")}>
+                    <button
+                      type="button"
+                      className="cursor-pointer truncate border-none bg-transparent p-0 text-left text-[0.8125rem] font-medium text-accent-text hover:underline"
+                      onClick={() => navigate(`/projects/${opp.overlap.projectIdA}`)}
+                    >
+                      {opp.overlap.projectNameA}
+                    </button>
+                  </td>
+                  <td className={cn(CLS_TD, "max-w-[10rem] truncate text-text-primary")}>
+                    <button
+                      type="button"
+                      className="cursor-pointer truncate border-none bg-transparent p-0 text-left text-[0.8125rem] font-medium text-accent-text hover:underline"
+                      onClick={() => navigate(`/projects/${opp.overlap.projectIdB}`)}
+                    >
+                      {opp.overlap.projectNameB}
+                    </button>
+                  </td>
+                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
+                    {formatMiles(opp.overlap.distanceMi)}
+                  </td>
+                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
+                    {opp.overlap.timeGapDays != null
+                      ? `${opp.overlap.timeGapDays.toLocaleString()} d`
+                      : "—"}
+                  </td>
+                  <td
+                    className={cn(
+                      CLS_TD,
+                      "text-right font-mono text-[0.6875rem] font-semibold tabular-nums",
+                      opp.costImpact.totalEstimatedSavings >= 1_000_000
+                        ? "text-green"
+                        : "text-text-primary",
+                    )}
                   >
-                    {o.projectNameA}
-                  </button>
-                  <span className="text-text-muted"> ↔ </span>
-                  <button
-                    type="button"
-                    className="cursor-pointer border-none bg-transparent p-0 text-left font-medium text-accent-text hover:underline"
-                    onClick={() => navigate(`/projects/${o.projectIdB}`)}
-                  >
-                    {o.projectNameB}
-                  </button>
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
+                    ${(opp.costImpact.totalEstimatedSavings / 1_000_000).toFixed(2)}M
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-        <section className={CLS_DASHBOARD_PANEL_SHELL}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Highest overlap activity</div>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {overlapByProject.map((row) => (
-              <li key={row.id}>
+      {/* ── #1 Opportunity deep dive ── */}
+      {rankedOpportunities[0] && (
+        <section
+          className={cn(
+            CLS_DASHBOARD_PANEL_SHELL,
+            "mt-[0.85rem] border-green/40 bg-green-light/20",
+          )}
+        >
+          <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "flex items-center gap-2")}>
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green font-mono text-[0.6875rem] font-bold text-white">
+              1
+            </span>
+            Coordination spotlight — cost/impact estimate
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.8fr]">
+            <div>
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-[0.8125rem]">
                 <button
                   type="button"
-                  className={cn(
-                    CLS_PANEL_ITEM,
-                    CLS_PANEL_ITEM_INTERACTIVE,
-                    "flex w-full items-start justify-between gap-3 text-left",
-                  )}
-                  onClick={() => navigate(`/projects/${row.id}`)}
+                  className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
+                  onClick={() => navigate(`/projects/${rankedOpportunities[0].overlap.projectIdA}`)}
                 >
-                  <div className="min-w-0">
-                    <div className={CLS_PANEL_ITEM_META}>
-                      <UtilityBadge utilityKey={row.utilityKey} />
-                      <span>{row.id}</span>
-                    </div>
-                    <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
-                      {row.name}
-                    </span>
-                  </div>
-                  <span className="shrink-0 font-mono text-[0.8125rem] font-semibold leading-none text-green">
-                    {row.overlaps}
-                  </span>
+                  {rankedOpportunities[0].overlap.projectNameA}
                 </button>
-              </li>
-            ))}
-          </ul>
+                <span className="text-text-muted">↔</span>
+                <button
+                  type="button"
+                  className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
+                  onClick={() => navigate(`/projects/${rankedOpportunities[0].overlap.projectIdB}`)}
+                >
+                  {rankedOpportunities[0].overlap.projectNameB}
+                </button>
+              </div>
+              <p className="m-0 mb-3 text-[0.8125rem] leading-relaxed text-text-secondary">
+                {rankedOpportunities[0].costImpact.explanation}
+              </p>
+              <p className="m-0 text-[0.7rem] italic text-text-muted">
+                Estimates use conservative industry averages (FERC/EEI data for rural SE US). Actual
+                savings depend on terrain, permitting, and negotiated land costs.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 rounded-md border border-border bg-surface px-4 py-3">
+              <div className="text-[0.7rem] font-semibold uppercase tracking-widest text-text-muted">
+                Savings breakdown
+              </div>
+              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                <span className="text-text-secondary">Shared ROW corridor</span>
+                <span className="font-mono font-semibold text-text-primary">
+                  ~{rankedOpportunities[0].costImpact.sharedRowMiles.toFixed(1)} mi
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                <span className="text-text-secondary">ROW cost/mile</span>
+                <span className="font-mono text-text-primary">
+                  ${(rankedOpportunities[0].costImpact.rowCostPerMile / 1000).toFixed(0)}k
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                <span className="text-text-secondary">
+                  Land savings ({(rankedOpportunities[0].costImpact.rowSavingsPct * 100).toFixed(0)}
+                  % shared)
+                </span>
+                <span className="font-mono font-semibold text-green">
+                  ${(rankedOpportunities[0].costImpact.estimatedSavings / 1000).toFixed(0)}k
+                </span>
+              </div>
+              {rankedOpportunities[0].costImpact.mobilisationSavings > 0 && (
+                <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                  <span className="text-text-secondary">Joint mobilisation</span>
+                  <span className="font-mono font-semibold text-green">
+                    ${(rankedOpportunities[0].costImpact.mobilisationSavings / 1000).toFixed(0)}k
+                  </span>
+                </div>
+              )}
+              <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2 text-[0.8125rem]">
+                <span className="font-semibold text-text-primary">Total estimated savings</span>
+                <span className="font-mono text-[0.95rem] font-bold text-green">
+                  $
+                  {(rankedOpportunities[0].costImpact.totalEstimatedSavings / 1_000_000).toFixed(2)}
+                  M
+                </span>
+              </div>
+            </div>
+          </div>
         </section>
-      </div>
+      )}
 
       <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
-        <div className={CLS_DASHBOARD_PANEL_HEADER}>All projects (quick view)</div>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>
+          Pilot projects (quick view — {formatCount(summary.totalProjects)} curated)
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.8125rem]">
             <thead>
@@ -257,13 +459,310 @@ export default function Dashboard() {
         </div>
       </section>
 
+      {/* ── Portfolio analytics ── */}
+      <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
+        <h2 className="m-0 text-[0.95rem] font-semibold leading-tight text-text-primary">
+          Portfolio analytics
+        </h2>
+        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
+          Breakdown of {formatCount(geocodeSummary.uniqueProjects)} transmission projects across
+          Dominion Energy SC and Georgia Power — voltage, work type, geography, and line-mile scale.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {/* Voltage class donut */}
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={voltageData}
+                  dataKey="count"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="45%"
+                  outerRadius="72%"
+                  paddingAngle={3}
+                  strokeWidth={0}
+                  label={({ name, percent }: { name?: string; percent?: number }) =>
+                    `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                  labelLine={{ stroke: "var(--text-muted)", strokeWidth: 1 }}
+                >
+                  {voltageData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value) => [`${value} projects`]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* Work type bars */}
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type (unique projects)</div>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={workTypeData}
+                layout="vertical"
+                margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                <XAxis
+                  type="number"
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={90}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--surface-hover)" }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                />
+                <Bar dataKey="count" fill="var(--accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* Border vs interior donut */}
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior projects</div>
+          <p className="m-0 mb-1 text-[0.7rem] leading-snug text-text-muted">
+            Projects flagged near the SC/GA state line vs. interior-only.
+          </p>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={borderData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="40%"
+                  outerRadius="70%"
+                  paddingAngle={4}
+                  strokeWidth={0}
+                  label={({ name, percent }: { name?: string; percent?: number }) =>
+                    `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
+                  }
+                  labelLine={{ stroke: "var(--text-muted)", strokeWidth: 1 }}
+                >
+                  {borderData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.fill} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value) => [`${value} projects`]}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      </div>
+
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
+        {/* Line miles distribution */}
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[220px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Line miles distribution</div>
+          <p className="m-0 mb-1 text-[0.7rem] leading-snug text-text-muted">
+            How long are planned transmission line segments?
+          </p>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={milesBuckets} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="bucket"
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  interval={0}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  width={32}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--surface-hover)" }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value) => [`${value} points`, "Count"]}
+                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                />
+                <Bar dataKey="count" fill="var(--georgia)" maxBarSize={48} radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+
+        {/* Region by utility stacked bar */}
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[220px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Region by utility</div>
+          <div className="min-h-0 flex-1">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <XAxis
+                  dataKey="region"
+                  tickLine={false}
+                  axisLine={{ stroke: "var(--border)" }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                  interval={0}
+                  tickFormatter={(v: string) => regionLabel(v)}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  width={32}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--surface-hover)" }}
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  labelFormatter={(label) => regionLabel(String(label))}
+                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                />
+                <Legend
+                  verticalAlign="top"
+                  height={24}
+                  iconSize={10}
+                  wrapperStyle={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
+                />
+                <Bar
+                  dataKey="gpc"
+                  name="Georgia Power"
+                  stackId="a"
+                  fill="var(--georgia)"
+                  maxBarSize={48}
+                  radius={[0, 0, 0, 0]}
+                />
+                <Bar
+                  dataKey="desc"
+                  name="Dominion (SC)"
+                  stackId="a"
+                  fill="var(--dominion)"
+                  maxBarSize={48}
+                  radius={[6, 6, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      </div>
+
+      {/* Utility split — small donut beside the overlap pairs */}
+      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_0.6fr]">
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Utility portfolio split (all points)</div>
+          <div className="flex flex-1 items-center justify-center gap-6">
+            <div className="h-[160px] w-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={utilitySplit}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    innerRadius="50%"
+                    outerRadius="90%"
+                    paddingAngle={4}
+                    strokeWidth={0}
+                  >
+                    {utilitySplit.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(value) => [
+                      `${value} points (${((Number(value) / geocodeSummary.totalPoints) * 100).toFixed(1)}%)`,
+                    ]}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-[0.8125rem]">
+              {utilitySplit.map((u) => (
+                <li key={u.name} className="flex items-center gap-2">
+                  <span
+                    className="inline-block h-3 w-3 rounded-full"
+                    style={{ background: u.fill }}
+                  />
+                  <span className="text-text-primary font-medium">{u.name}</span>
+                  <span className="font-mono text-text-muted">{u.value}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Key metrics</div>
+          <ul className="m-0 flex list-none flex-col gap-[0.7rem] p-0 text-[0.8125rem]">
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-text-secondary">Unique projects</span>
+              <span className="font-mono font-semibold text-text-primary">
+                {formatCount(geocodeSummary.uniqueProjects)}
+              </span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-text-secondary">Total queue points</span>
+              <span className="font-mono font-semibold text-text-primary">
+                {formatCount(geocodeSummary.totalPoints)}
+              </span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-text-secondary">Points with coordinates</span>
+              <span className="font-mono font-semibold text-green">
+                {formatPercent(geocodeSummary.locatedPct, 1)}
+              </span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-text-secondary">Border-area projects</span>
+              <span className="font-mono font-semibold text-dominion">{borderData[0].value}</span>
+            </li>
+            <li className="flex items-baseline justify-between gap-2">
+              <span className="text-text-secondary">Pilot overlaps detected</span>
+              <span className="font-mono font-semibold text-accent-text">
+                {formatCount(summary.totalOverlaps)}
+              </span>
+            </li>
+          </ul>
+        </section>
+      </div>
+
+      {/* ── Geocode review queue ── */}
       <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
         <h2 className="m-0 text-[0.95rem] font-semibold leading-tight text-text-primary">
           Geocode review queue
         </h2>
         <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
-          Point-level locations extracted from utility project descriptions. Tasks progress from FIND
-          → CONFIRM; confidence reflects how sure we are in lat/lon until field verification
+          Point-level locations extracted from utility project descriptions. Tasks progress from
+          FIND → CONFIRM; confidence reflects how sure we are in lat/lon until field verification
           completes.
         </p>
       </div>
@@ -288,10 +787,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
-        <RegionalProjectMap
-          geocodePoints={geocodePoints}
-          title="Coordinate verification map"
-        />
+        <RegionalProjectMap geocodePoints={geocodePoints} title="Coordinate verification map" />
         <div className="flex min-h-[310px] flex-col gap-3">
           <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[140px] flex-1 flex-col")}>
             <div className={CLS_DASHBOARD_PANEL_HEADER}>Review task backlog</div>
@@ -401,7 +897,12 @@ export default function Dashboard() {
                     labelFormatter={(label) => regionLabel(String(label))}
                     labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
                   />
-                  <Bar dataKey="count" fill="var(--georgia)" maxBarSize={16} radius={[0, 4, 4, 0]} />
+                  <Bar
+                    dataKey="count"
+                    fill="var(--georgia)"
+                    maxBarSize={16}
+                    radius={[0, 4, 4, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -410,7 +911,9 @@ export default function Dashboard() {
       </div>
 
       <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
-        <div className={CLS_DASHBOARD_PANEL_HEADER}>Priority review (FIND & low confidence first)</div>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>
+          Priority review (FIND & low confidence first)
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.8125rem]">
             <thead>
@@ -437,7 +940,10 @@ export default function Dashboard() {
                   <td className={CLS_TD}>
                     <ConfidenceBadge confidence={p.confidence} />
                   </td>
-                  <td className={cn(CLS_TD, "max-w-[14rem] truncate text-text-primary")} title={p.pointName}>
+                  <td
+                    className={cn(CLS_TD, "max-w-[14rem] truncate text-text-primary")}
+                    title={p.pointName}
+                  >
                     {p.pointName}
                   </td>
                   <td className={CLS_TD}>{regionLabel(p.region)}</td>
