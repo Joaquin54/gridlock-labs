@@ -38,9 +38,6 @@ export default function AppShell({ children, flushMain }: AppShellProps) {
           <NavLink to="/search" className={navClass}>
             Search
           </NavLink>
-          <NavLink to="/upload" className={navClass}>
-            Upload
-          </NavLink>
         </nav>
 
         <div className="flex items-center justify-end gap-3 justify-self-end">
