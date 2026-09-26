@@ -124,6 +124,7 @@ Unchanged: what was done, key decisions, what was verified and how, stated assum
 - Fail fast on scope creep — stop and ask rather than silently consuming the window.
 
 ## Global Code Standards (unchanged)
+- Don't: Try to Create Dedicated HEAD Handlers
 - 2-space indentation. Explicit types always.
 - React: prefer functional components.
 - Never introduce race conditions. Always memory-safe.
