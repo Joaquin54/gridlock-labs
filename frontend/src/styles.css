@@ -18,6 +18,12 @@
   --dominion-light: #ffedd5;
   --georgia: #1d4ed8;
   --georgia-light: #dbeafe;
+  /* Voltage class mix pie — categorical, not utility brand colors */
+  --voltage-500: #7c3aed;
+  --voltage-230: #d97706;
+  --voltage-115: #0891b2;
+  --voltage-46: #db2777;
+  --voltage-other: #64748b;
   /* Map point markers (confidence) — saturated for small dots on the choropleth */
   --map-marker-high: #efd241;
   --map-marker-medium: #2563eb;
@@ -49,6 +55,11 @@
   --dominion-light: #431407;
   --georgia: #93c5fd;
   --georgia-light: #1e3a5f;
+  --voltage-500: #a78bfa;
+  --voltage-230: #fbbf24;
+  --voltage-115: #22d3ee;
+  --voltage-46: #f472b6;
+  --voltage-other: #94a3b8;
   --map-marker-high: #ebb747;
   --map-marker-medium: #60a5fa;
   --map-marker-low: #f87171;

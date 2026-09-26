@@ -121,6 +121,7 @@ export default function ProjectDetailPage() {
       {/* ── Map (left) + project details (right) — mirrors dashboard layout ── */}
       <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
         <RegionalProjectMap
+          key={project.id}
           projects={mapProjects}
           selectedProjectId={project.id}
           onSelectProject={(id) => {

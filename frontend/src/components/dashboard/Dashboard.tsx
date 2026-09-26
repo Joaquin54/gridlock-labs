@@ -37,10 +37,10 @@ import {
   CHART_AXIS_TICK,
   CHART_LEGEND_BOTTOM,
   CHART_LEGEND_TOP,
+  CHART_LEGEND_WRAPPER_STYLE,
   CHART_PIE_SLICE_STROKE,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_STYLE,
-  CHART_TICK_FONT_SIZE,
   CLS_DASHBOARD_INTRO,
   CLS_DASHBOARD_PANEL_BODY,
   CLS_DASHBOARD_PANEL_CAPTION,
@@ -156,8 +156,8 @@ export default function Dashboard() {
           title="SC & GA portfolio footprint"
         />
         <div className="flex min-h-[310px] flex-col gap-3">
-          <div className="grid min-h-[150px] flex-1 grid-cols-2 gap-2 min-[901px]:gap-3">
-            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-0 flex-col")}>
+          <div className="grid min-h-[210px] flex-1 grid-cols-1 gap-3 min-[901px]:grid-cols-2 min-[901px]:gap-3">
+            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
               <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
               <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
@@ -186,22 +186,21 @@ export default function Dashboard() {
                 </ResponsiveContainer>
               </div>
             </section>
-            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-0 flex-col")}>
-              <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior</div>
+            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+              <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
               <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={borderData}
-                      dataKey="value"
+                      data={voltageData}
+                      dataKey="count"
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius="42%"
                       outerRadius="68%"
                       {...CHART_PIE_SLICE_STROKE}
                     >
-                      {borderData.map((entry) => (
+                      {voltageData.map((entry) => (
                         <Cell key={entry.name} fill={entry.fill} />
                       ))}
                     </Pie>
@@ -209,7 +208,11 @@ export default function Dashboard() {
                       contentStyle={CHART_TOOLTIP_STYLE}
                       formatter={(value) => [`${value} projects`]}
                     />
-                    <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
+                    <Legend
+                      {...CHART_LEGEND_BOTTOM}
+                      wrapperStyle={{ ...CHART_LEGEND_WRAPPER_STYLE, whiteSpace: "nowrap" }}
+                      formatter={pieLegendLabel}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -508,49 +511,23 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {/* Voltage class donut */}
         <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior</div>
           <div className="min-h-0 flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={voltageData}
-                  dataKey="count"
+                  data={borderData}
+                  dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  innerRadius="45%"
+                  cy="46%"
+                  innerRadius="48%"
                   outerRadius="72%"
                   paddingAngle={3}
                   strokeWidth={0}
-                  label={({
-                    name,
-                    percent,
-                    x,
-                    y,
-                  }: {
-                    name?: string;
-                    percent?: number;
-                    x?: number;
-                    y?: number;
-                  }) =>
-                    x != null && y != null ? (
-                      <text
-                        x={x}
-                        y={y}
-                        fill="var(--text-secondary)"
-                        textAnchor="middle"
-                        dominantBaseline="central"
-                        fontSize={CHART_TICK_FONT_SIZE}
-                      >
-                        {`${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                      </text>
-                    ) : null
-                  }
-                  labelLine={{ stroke: "var(--text-muted)", strokeWidth: 1 }}
                 >
-                  {voltageData.map((entry) => (
+                  {borderData.map((entry) => (
                     <Cell key={entry.name} fill={entry.fill} />
                   ))}
                 </Pie>
@@ -558,6 +535,7 @@ export default function Dashboard() {
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value) => [`${value} projects`]}
                 />
+                <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -698,7 +676,9 @@ export default function Dashboard() {
 
         <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
           <div className={CLS_DASHBOARD_PANEL_HEADER}>Key metrics</div>
-          <ul className={cn("m-0 flex list-none flex-col gap-[0.7rem] p-0", CLS_DASHBOARD_PANEL_BODY)}>
+          <ul
+            className={cn("m-0 flex list-none flex-col gap-[0.7rem] p-0", CLS_DASHBOARD_PANEL_BODY)}
+          >
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-text-secondary">Unique projects</span>
               <span className="font-mono font-semibold text-text-primary">

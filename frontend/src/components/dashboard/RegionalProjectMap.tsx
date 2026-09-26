@@ -1,18 +1,21 @@
 import { geoBounds, geoCentroid, geoContains } from "d3-geo";
-import { feature } from "topojson-client";
+import type { Feature, Geometry } from "geojson";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
+import { feature as topoFeature } from "topojson-client";
+import type { Topology } from "topojson-specification";
 import type { ReviewQueuePoint } from "../../types/geocode";
 import { confidenceMarkerFill, utilityKeyFromQueueCode } from "../../types/geocode";
 import type { GridlockProject } from "../../types/project";
 import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
 import {
+  buildCountyCountScale,
+  MAP_COUNTY_STROKE_WIDTH,
   MAP_DEFAULT_STROKE,
   MAP_HOVER_FILL,
   MAP_HOVER_STROKE,
   MAP_HOVER_STROKE_WIDTH,
-  MAP_COUNTY_STROKE_WIDTH,
   MAP_INSET_STROKE,
   MAP_MUTED_STATE_FILL,
   MAP_SELECTED_STROKE,
@@ -20,7 +23,6 @@ import {
   MAP_STATE_BOUNDARY_STROKE,
   MAP_STATE_BOUNDARY_WIDTH,
   MAP_ZERO_FILL,
-  buildCountyCountScale,
 } from "../../utils/mapChoropleth";
 import ConfidenceBadge from "../shared/ConfidenceBadge";
 import TaskBadge from "../shared/TaskBadge";
@@ -79,14 +81,15 @@ const MAP_MAX_ZOOM = 24;
 const MARKER_RADIUS = 2;
 const MARKER_LEGACY_REFERENCE_ZOOM = 4.5;
 /** Screen-space floor so dots stay visible and easy to hit when zoomed in. */
-const MARKER_MIN_RADIUS = 0.45;
+const MARKER_MIN_RADIUS = 0.30;
 /** Subtle hover / selection emphasis — same min radius, slightly larger ring. */
 const MARKER_HOVER_SCALE = 1.5;
 
 function markerRadiusForZoom(zoom: number, hovered: boolean, baseRadius: number): number {
   const calibration = MARKER_LEGACY_REFERENCE_ZOOM * MAP_DEFAULT_POSITION.zoom ** 0.35;
   const scaled = (baseRadius * calibration) / zoom ** 1.35;
-  const r = Math.max(MARKER_MIN_RADIUS, scaled);
+  const maxRadius = baseRadius * 1.75;
+  const r = Math.min(maxRadius, Math.max(MARKER_MIN_RADIUS, scaled));
   return hovered ? r * MARKER_HOVER_SCALE : r;
 }
 
@@ -95,15 +98,17 @@ type StateGeo = {
   properties: { name?: string };
 };
 
+type CountyProperties = { name?: string };
+
 type CountyGeo = {
   rsmKey: string;
   id?: string | number;
-  properties: { name?: string };
+  properties: CountyProperties;
 };
 
-type CountyFeature = CountyGeo & {
-  type: string;
-  geometry: unknown;
+type CountyFeature = Feature<Geometry, CountyProperties> & {
+  rsmKey: string;
+  id?: string | number;
 };
 
 type GeocodeMarkerColorBy = "utility" | "confidence";
@@ -119,10 +124,7 @@ type RegionalProjectMapProps = {
   initialPosition?: MapPosition;
 };
 
-function geocodeMarkerFill(
-  point: ReviewQueuePoint,
-  colorBy: GeocodeMarkerColorBy,
-): string {
+function geocodeMarkerFill(point: ReviewQueuePoint, colorBy: GeocodeMarkerColorBy): string {
   if (colorBy === "utility") {
     return utilityKeyFromQueueCode(point.utility) === "dominion"
       ? "var(--dominion)"
@@ -132,9 +134,8 @@ function geocodeMarkerFill(
 }
 
 function zoomToCountyFeature(geo: CountyFeature): MapPosition {
-  const feature = geo as Parameters<typeof geoCentroid>[0];
-  const centroid = geoCentroid(feature);
-  const [[west, south], [east, north]] = geoBounds(feature);
+  const centroid = geoCentroid(geo);
+  const [[west, south], [east, north]] = geoBounds(geo);
   const span = Math.max(east - west, north - south, 0.02);
   const zoom = Math.min(MAP_MAX_ZOOM, Math.max(9.5, 2.75 / span));
   return { coordinates: [centroid[0], centroid[1]], zoom };
@@ -150,14 +151,25 @@ export default function RegionalProjectMap({
   initialPosition,
 }: RegionalProjectMapProps) {
   const startPosition = initialPosition ?? MAP_DEFAULT_POSITION;
+  const [startLng, startLat] = startPosition.coordinates;
+  const startZoom = startPosition.zoom;
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
-  const [hoverCounty, setHoverCounty] = useState<{ name: string; fips: string; count: number } | null>(
-    null,
-  );
+  const [hoverCounty, setHoverCounty] = useState<{
+    name: string;
+    fips: string;
+    count: number;
+  } | null>(null);
   const [selectedCountyFips, setSelectedCountyFips] = useState<string | null>(null);
   const [countyCounts, setCountyCounts] = useState<Map<string, number>>(() => new Map());
   const [mapPosition, setMapPosition] = useState<MapPosition>(startPosition);
+
+  useEffect(() => {
+    setMapPosition({ coordinates: [startLng, startLat], zoom: startZoom });
+    setSelectedCountyFips(null);
+    setHoverCounty(null);
+    setHoverId(null);
+  }, [startLng, startLat, startZoom]);
 
   const useGeocode = Boolean(geocodePoints?.length);
 
@@ -192,13 +204,17 @@ export default function RegionalProjectMap({
     async function loadCountyCounts(): Promise<void> {
       try {
         const res = await fetch(COUNTIES_GEO_URL);
-        const topology = (await res.json()) as {
-          objects: { counties: unknown };
-        };
-        const collection = feature(
-          topology as Parameters<typeof feature>[0],
-          topology.objects.counties as Parameters<typeof feature>[1],
-        ) as { features: CountyFeature[] };
+        const topology = (await res.json()) as Topology;
+        const countiesTopo = topology.objects.counties;
+        if (!countiesTopo) {
+          if (!cancelled) setCountyCounts(new Map());
+          return;
+        }
+        const collection = topoFeature(topology, countiesTopo);
+        if (collection.type !== "FeatureCollection") {
+          if (!cancelled) setCountyCounts(new Map());
+          return;
+        }
 
         const scGaCounties = collection.features.filter((f) => isScOrGaCounty(f.id));
         const counts = new Map<string, number>();
@@ -209,7 +225,7 @@ export default function RegionalProjectMap({
         for (const point of mapPoints) {
           const coord: [number, number] = [point.lon, point.lat];
           for (const county of scGaCounties) {
-            if (geoContains(county as Parameters<typeof geoContains>[0], coord)) {
+            if (geoContains(county, coord)) {
               const fips = String(county.id);
               counts.set(fips, (counts.get(fips) ?? 0) + 1);
               break;
@@ -346,7 +362,7 @@ export default function RegionalProjectMap({
                               : "#94a3b8"
                         }
                         strokeWidth={
-                          hovered && highlighted ? MAP_HOVER_STROKE_WIDTH : highlighted ? 0.20 : 0.20
+                          hovered && highlighted ? MAP_HOVER_STROKE_WIDTH : highlighted ? 0.2 : 0.2
                         }
                         style={{
                           default: {
@@ -374,7 +390,10 @@ export default function RegionalProjectMap({
                   const scGa = geographies.filter((geo) => isScOrGaCounty(geo.id));
                   const elevatedFips = hoverCounty?.fips ?? selectedCountyFips;
 
-                  const renderCountyLayer = (geo: CountyGeo, onTop: boolean): JSX.Element | null => {
+                  const renderCountyLayer = (
+                    geo: CountyGeo,
+                    onTop: boolean,
+                  ): JSX.Element | null => {
                     const fips = String(geo.id ?? "");
                     const name = geo.properties.name ?? "County";
                     const count = countyCounts.get(fips) ?? 0;
@@ -383,9 +402,7 @@ export default function RegionalProjectMap({
 
                     const hovered = hoverCounty?.fips === fips;
                     const selected = selectedCountyFips === fips;
-                    const fill = hovered
-                      ? MAP_HOVER_FILL
-                      : countyColorScale.getFill(count);
+                    const fill = hovered ? MAP_HOVER_FILL : countyColorScale.getFill(count);
                     const stroke = hovered
                       ? MAP_HOVER_STROKE
                       : selected
@@ -406,9 +423,7 @@ export default function RegionalProjectMap({
                         strokeWidth={strokeWidth}
                         style={COUNTY_GEO_STYLE}
                         onMouseEnter={() => setHoverCounty({ name, fips, count })}
-                        onMouseLeave={() =>
-                          setHoverCounty((c) => (c?.fips === fips ? null : c))
-                        }
+                        onMouseLeave={() => setHoverCounty((c) => (c?.fips === fips ? null : c))}
                         onClick={() => handleCountyClick(geo)}
                       />
                     );
@@ -503,8 +518,8 @@ export default function RegionalProjectMap({
           Drag to pan, scroll to zoom. Click a county to zoom in; click again or Reset to return.{" "}
           {useGeocode ? (
             <>
-              {mappableGeocode.length} located points ({geocodePoints?.length ?? 0} in queue). County
-              shading by point density.
+              {mappableGeocode.length} located points ({geocodePoints?.length ?? 0} in queue).
+              County shading by point density.
             </>
           ) : (
             <>

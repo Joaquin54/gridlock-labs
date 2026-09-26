@@ -25,7 +25,7 @@ export const MAP_DEFAULT_STROKE = "#ffffff";
 export const MAP_MUTED_STATE_FILL = "#e8edf5";
 /** County interior lines */
 export const MAP_INSET_STROKE = "#2f6b52";
-export const MAP_COUNTY_STROKE_WIDTH = 0.90;
+export const MAP_COUNTY_STROKE_WIDTH = 0.9;
 /** SC ↔ GA (and outer state) boundary — drawn above counties */
 export const MAP_STATE_BOUNDARY_STROKE = "#1a4d38";
 export const MAP_STATE_BOUNDARY_WIDTH = 2.5;
@@ -52,9 +52,9 @@ export function buildCountyCountScale(counts: Iterable<number>): CountyCountScal
     thresholds.push(t);
   }
 
-  const scale = scaleThreshold().domain(thresholds).range([...MAP_COLOR_STOPS]) as (
-    value: number,
-  ) => string;
+  const scale = scaleThreshold<number, string>()
+    .domain(thresholds)
+    .range([...MAP_COLOR_STOPS]);
 
   return {
     getFill: (count: number) => {

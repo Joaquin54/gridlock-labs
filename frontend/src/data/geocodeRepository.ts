@@ -174,11 +174,11 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
     }
   }
   const fills: Record<VoltageClass, string> = {
-    "500 kV": "var(--dominion)",
-    "230 kV": "var(--accent)",
-    "115 kV": "var(--georgia)",
-    "46 kV": "var(--green)",
-    Other: "var(--text-muted)",
+    "500 kV": "var(--voltage-500)",
+    "230 kV": "var(--voltage-230)",
+    "115 kV": "var(--voltage-115)",
+    "46 kV": "var(--voltage-46)",
+    Other: "var(--voltage-other)",
   };
   const order: VoltageClass[] = ["500 kV", "230 kV", "115 kV", "46 kV", "Other"];
   return order

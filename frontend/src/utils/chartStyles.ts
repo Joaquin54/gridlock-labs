@@ -7,8 +7,7 @@ export const CLS_DASHBOARD_PANEL_HEADER =
   "shrink-0 text-text-primary text-[0.9rem] font-semibold mb-[0.65rem]";
 
 /** Muted helper line under a panel title (charts). */
-export const CLS_DASHBOARD_PANEL_CAPTION =
-  "m-0 mb-1 text-[0.8125rem] leading-snug text-text-muted";
+export const CLS_DASHBOARD_PANEL_CAPTION = "m-0 mb-1 text-[0.8125rem] leading-snug text-text-muted";
 
 /** In-panel list / key-value rows (matches chart tooltip size). */
 export const CLS_DASHBOARD_PANEL_BODY = "text-[0.8125rem] text-text-secondary";
