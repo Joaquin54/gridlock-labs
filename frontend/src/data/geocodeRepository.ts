@@ -88,11 +88,11 @@ export function getReviewQueueChartData() {
       count: summary.byConfidence[confidence],
       fill:
         confidence === "high"
-          ? "var(--green)"
+          ? "var(--map-marker-high)"
           : confidence === "medium"
-            ? "var(--accent)"
+            ? "var(--map-marker-medium)"
             : confidence === "low"
-              ? "var(--dominion)"
+              ? "var(--map-marker-low)"
               : "var(--text-muted)",
     })),
     regionData: summary.byRegion.slice(0, 6).map((r) => ({
@@ -232,8 +232,8 @@ export function getBorderBreakdown(): Array<{ name: string; value: number; fill:
     else interior++;
   }
   return [
-    { name: "Cross-state border", value: border, fill: "var(--dominion)" },
-    { name: "Interior", value: interior, fill: "var(--georgia)" },
+    { name: "Cross-state border", value: border, fill: "var(--accent)" },
+    { name: "Interior", value: interior, fill: "var(--green)" },
   ];
 }
 

@@ -1,5 +1,11 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { getLinkedProjects, getOverlapsForProject, getProjectById } from "../../data/repository";
+import {
+  getLinkedProjects,
+  getOverlapsForProject,
+  getProjectById,
+  utilityShortLabel,
+} from "../../data/repository";
+import type { GridlockProject } from "../../types/project";
 import {
   CLS_DASHBOARD_PANEL_HEADER,
   CLS_DASHBOARD_PANEL_SHELL,
@@ -41,6 +47,30 @@ function EndpointBlock({
   );
 }
 
+/** Collect the current project + every overlapping project (deduped). */
+function getMapProjectsAndPosition(project: GridlockProject): {
+  mapProjects: GridlockProject[];
+  initialPosition: { coordinates: [number, number]; zoom: number };
+} {
+  const linked = getLinkedProjects(project);
+  const seen = new Set<string>([project.id]);
+  const all: GridlockProject[] = [project];
+  for (const lp of linked) {
+    if (!seen.has(lp.id)) {
+      seen.add(lp.id);
+      all.push(lp);
+    }
+  }
+
+  const hasCenter = project.center.lat != null && project.center.lon != null;
+  const coordinates: [number, number] = hasCenter
+    ? [project.center.lon as number, project.center.lat as number]
+    : [-82.25, 32.85];
+  const zoom = hasCenter ? 14 : 6.25;
+
+  return { mapProjects: all, initialPosition: { coordinates, zoom } };
+}
+
 export default function ProjectDetailPage() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -59,6 +89,7 @@ export default function ProjectDetailPage() {
 
   const overlaps = getOverlapsForProject(project.id);
   const linked = getLinkedProjects(project);
+  const { mapProjects, initialPosition } = getMapProjectsAndPosition(project);
 
   return (
     <div className="flex w-full flex-col pb-6">
@@ -87,80 +118,124 @@ export default function ProjectDetailPage() {
         </p>
       </header>
 
-      <div className="mb-[0.85rem] grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[auto_1fr]">
-        <div className="rounded-lg border border-border bg-surface px-4 py-[0.9rem] text-center">
-          <div className="font-mono text-[1.45rem] font-bold leading-[1.2] text-accent">
-            {project.overlapCount}
+      {/* ── Map (left) + project details (right) — mirrors dashboard layout ── */}
+      <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
+        <RegionalProjectMap
+          projects={mapProjects}
+          selectedProjectId={project.id}
+          onSelectProject={(id) => {
+            if (id !== project.id) navigate(`/projects/${id}`);
+          }}
+          title={`${project.name} — overlap footprint`}
+          initialPosition={initialPosition}
+        />
+
+        <div className="flex flex-col gap-3">
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-border bg-surface px-4 py-[0.9rem] text-center">
+              <div className="font-mono text-[1.45rem] font-bold leading-[1.2] text-accent">
+                {project.overlapCount}
+              </div>
+              <div className="mt-[0.375rem] text-[0.8125rem] leading-tight text-text-secondary">
+                Overlaps
+              </div>
+            </div>
+            <div className="rounded-lg border border-border bg-surface px-4 py-[0.9rem] text-center">
+              <div className="font-mono text-[1.45rem] font-bold leading-[1.2] text-text-primary">
+                {project.state}
+              </div>
+              <div className="mt-[0.375rem] text-[0.8125rem] leading-tight text-text-secondary">
+                State
+              </div>
+            </div>
           </div>
-          <div className="mt-[0.375rem] text-[0.8125rem] leading-tight text-text-secondary">
-            Overlaps
+
+          {/* Project info */}
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex flex-col gap-2.5")}>
+            <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "mb-0")}>Project details</div>
+            <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+              <span className="text-text-secondary">Utility</span>
+              <span className="font-medium text-text-primary">
+                {utilityShortLabel(project.utilityKey)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+              <span className="text-text-secondary">In-service date</span>
+              <span className="font-mono text-text-primary">
+                {formatDateLabel(project.inServiceDate)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+              <span className="text-text-secondary">Map center</span>
+              <span className="font-mono text-[0.75rem] text-text-primary">
+                {project.center.lat != null && project.center.lon != null
+                  ? `${formatCoord(project.center.lat)}, ${formatCoord(project.center.lon)}`
+                  : "Pending"}
+              </span>
+            </div>
+          </section>
+
+          {/* Endpoints */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <EndpointBlock title="Endpoint A" endpoint={project.endpointA} />
+            <EndpointBlock title="Endpoint B" endpoint={project.endpointB} />
           </div>
-        </div>
-        <div className="flex flex-col justify-center rounded-lg border border-border bg-surface px-4 py-[0.9rem]">
-          <p className={CLS_FIELD_LABEL}>Map center</p>
-          <p className="m-0 mt-1.5 font-mono text-[0.8125rem] leading-none text-text-primary">
-            {project.center.lat != null && project.center.lon != null
-              ? `${formatCoord(project.center.lat)}, ${formatCoord(project.center.lon)}`
-              : "Pending"}
-          </p>
+
+          {/* Overlap records (inline in right column) */}
+          <section className={CLS_DASHBOARD_PANEL_SHELL}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>
+              Cross-utility overlap records ({overlaps.length})
+            </div>
+            {overlaps.length === 0 ? (
+              <p className="m-0 py-4 text-center text-[0.8125rem] text-text-muted">
+                No overlap pairs for this project.
+              </p>
+            ) : (
+              <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                {overlaps.map((o) => {
+                  const otherId = o.projectIdA === project.id ? o.projectIdB : o.projectIdA;
+                  const otherName = o.projectIdA === project.id ? o.projectNameB : o.projectNameA;
+                  const otherUtility = o.projectIdA === project.id ? o.utilityB : o.utilityA;
+                  return (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        className={cn(
+                          CLS_PANEL_ITEM,
+                          CLS_PANEL_ITEM_INTERACTIVE,
+                          "block w-full text-left",
+                        )}
+                        onClick={() => navigate(`/projects/${otherId}`)}
+                      >
+                        <div className={CLS_PANEL_ITEM_META}>
+                          <span>{o.id}</span>
+                          <span className="text-border-strong" aria-hidden>
+                            ·
+                          </span>
+                          <span>{formatMiles(o.distanceMi)}</span>
+                          <span className="text-border-strong" aria-hidden>
+                            ·
+                          </span>
+                          <span>{formatDays(o.timeGapDays)}</span>
+                        </div>
+                        <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
+                          {otherName}
+                        </span>
+                        <span className="mt-0.5 block text-[0.6875rem] text-text-muted">
+                          {otherUtility}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         </div>
       </div>
 
-      <div className="mb-[0.85rem] grid grid-cols-1 gap-3 lg:grid-cols-2">
-        <EndpointBlock title="Endpoint A" endpoint={project.endpointA} />
-        <EndpointBlock title="Endpoint B" endpoint={project.endpointB} />
-      </div>
-
-      <RegionalProjectMap
-        projects={[project]}
-        selectedProjectId={project.id}
-        onSelectProject={() => undefined}
-      />
-
-      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
-        <div className={CLS_DASHBOARD_PANEL_HEADER}>Cross-utility overlap records</div>
-        {overlaps.length === 0 ? (
-          <p className="m-0 py-4 text-center text-[0.8125rem] text-text-muted">
-            No overlap pairs for this project.
-          </p>
-        ) : (
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {overlaps.map((o) => {
-              const otherId = o.projectIdA === project.id ? o.projectIdB : o.projectIdA;
-              const otherName = o.projectIdA === project.id ? o.projectNameB : o.projectNameA;
-              return (
-                <li key={o.id}>
-                  <button
-                    type="button"
-                    className={cn(
-                      CLS_PANEL_ITEM,
-                      CLS_PANEL_ITEM_INTERACTIVE,
-                      "block w-full text-left",
-                    )}
-                    onClick={() => navigate(`/projects/${otherId}`)}
-                  >
-                    <div className={CLS_PANEL_ITEM_META}>
-                      <span>{o.id}</span>
-                      <span className="text-border-strong" aria-hidden>
-                        ·
-                      </span>
-                      <span>{formatMiles(o.distanceMi)}</span>
-                      <span className="text-border-strong" aria-hidden>
-                        ·
-                      </span>
-                      <span>{formatDays(o.timeGapDays)}</span>
-                    </div>
-                    <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
-                      {otherName}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
-
+      {/* ── Linked projects (full width below) ── */}
       {linked.length > 0 ? (
         <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
           <div className={CLS_DASHBOARD_PANEL_HEADER}>Linked projects (sheet references)</div>
@@ -179,9 +254,23 @@ export default function ProjectDetailPage() {
                   <div className={CLS_PANEL_ITEM_META}>
                     <UtilityBadge utilityKey={lp.utilityKey} />
                     <span>{lp.id}</span>
+                    <span className="text-border-strong" aria-hidden>
+                      ·
+                    </span>
+                    <span>{lp.state}</span>
+                    <span className="text-border-strong" aria-hidden>
+                      ·
+                    </span>
+                    <span>In service {formatDateLabel(lp.inServiceDate)}</span>
                   </div>
                   <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
                     {lp.name}
+                  </span>
+                  <span className="mt-0.5 block text-[0.6875rem] text-text-muted">
+                    {lp.utility}
+                    {lp.center.lat != null && lp.center.lon != null
+                      ? ` · ${formatCoord(lp.center.lat)}, ${formatCoord(lp.center.lon)}`
+                      : ""}
                   </span>
                 </button>
               </li>

@@ -18,6 +18,10 @@
   --dominion-light: #ffedd5;
   --georgia: #1d4ed8;
   --georgia-light: #dbeafe;
+  /* Map point markers (confidence) — saturated for small dots on the choropleth */
+  --map-marker-high: #efd241;
+  --map-marker-medium: #2563eb;
+  --map-marker-low: #dc2626;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -45,6 +49,9 @@
   --dominion-light: #431407;
   --georgia: #93c5fd;
   --georgia-light: #1e3a5f;
+  --map-marker-high: #ebb747;
+  --map-marker-medium: #60a5fa;
+  --map-marker-low: #f87171;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.28);
 }

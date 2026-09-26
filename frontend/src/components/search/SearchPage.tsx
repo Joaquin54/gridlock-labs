@@ -1,8 +1,8 @@
 import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { searchCatalog } from "../../data/repository";
-import type { SearchFilters, UtilityKey } from "../../types/project";
 import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
+import type { SearchFilters, UtilityKey } from "../../types/project";
 import { cn } from "../../utils/cn";
 import { formatDateLabel, formatMiles } from "../../utils/format";
 import ConfidenceBadge from "../shared/ConfidenceBadge";
@@ -226,10 +226,7 @@ export default function SearchPage() {
             const located = p.lat != null && p.lon != null && !Number.isNaN(p.lat);
 
             return (
-              <div
-                key={`queue-${p.id}`}
-                className="bg-surface px-[1.25rem] py-[0.6rem] text-left"
-              >
+              <div key={`queue-${p.id}`} className="bg-surface px-[1.25rem] py-[0.6rem] text-left">
                 <div className="flex items-baseline justify-between gap-4">
                   <h3 className="m-0 min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-[1.4] text-text-primary">
                     {p.pointName}
