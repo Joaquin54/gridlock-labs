@@ -2,3 +2,6 @@
 .CLAUE.MD
 .AGENTS.MD
 
+node_modules
+/Sperry-Tech-Challenge
+/isa_folder
