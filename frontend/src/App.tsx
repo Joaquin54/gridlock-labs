@@ -5,6 +5,7 @@ import AppShell from "./components/layout/AppShell";
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
 const SearchPage = lazy(() => import("./components/search/SearchPage"));
 const ProjectDetailPage = lazy(() => import("./components/project/ProjectDetailPage"));
+const PdfUploadPage = lazy(() => import("./components/upload/PdfUploadPage"));
 
 function LoadingFallback() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/upload" element={<PdfUploadPage />} />
           <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
