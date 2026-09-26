@@ -1,3 +1,5 @@
+import type { ReviewQueuePoint } from "./geocode";
+
 export type UtilityKey = "dominion" | "georgia-power";
 
 export type ProjectEndpoint = {
@@ -38,3 +40,7 @@ export type SearchFilters = {
   state: "" | "GA" | "SC";
   overlapsOnly: boolean;
 };
+
+export type CatalogSearchResult =
+  | { kind: "pilot"; project: GridlockProject }
+  | { kind: "queue"; point: ReviewQueuePoint };

@@ -1,10 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
 import type { ReviewQueuePoint } from "../../types/geocode";
-import {
-  confidenceMarkerFill,
-  utilityKeyFromQueueCode,
-} from "../../types/geocode";
+import { confidenceMarkerFill, utilityKeyFromQueueCode } from "../../types/geocode";
 import type { GridlockProject } from "../../types/project";
 import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
@@ -45,10 +42,14 @@ const MARKER_RADIUS_ACTIVE = 2.75;
 const MARKER_LEGACY_REFERENCE_ZOOM = 4.5;
 
 /** Map-space radius: legacy size at default zoom; shrinks when zooming in further. */
-function markerRadiusForZoom(zoom: number, active: boolean, baseRadius: number, activeRadius: number): number {
+function markerRadiusForZoom(
+  zoom: number,
+  active: boolean,
+  baseRadius: number,
+  activeRadius: number,
+): number {
   const base = active ? activeRadius : baseRadius;
-  const calibration =
-    MARKER_LEGACY_REFERENCE_ZOOM * MAP_DEFAULT_POSITION.zoom ** 0.35;
+  const calibration = MARKER_LEGACY_REFERENCE_ZOOM * MAP_DEFAULT_POSITION.zoom ** 0.35;
   const scaled = (base * calibration) / zoom ** 1.35;
   return Math.min(base * 1.75, Math.max(0.15, scaled));
 }
@@ -87,9 +88,7 @@ export default function RegionalProjectMap({
 
   const mappableGeocode = useMemo(
     () =>
-      (geocodePoints ?? []).filter(
-        (p) => p.lat != null && p.lon != null && !Number.isNaN(p.lat),
-      ),
+      (geocodePoints ?? []).filter((p) => p.lat != null && p.lon != null && !Number.isNaN(p.lat)),
     [geocodePoints],
   );
 
@@ -318,9 +317,7 @@ export default function RegionalProjectMap({
         <div
           className={cn(
             "mt-2 min-h-[3.75rem] box-border rounded-md border px-[0.875rem] py-[0.625rem] text-[0.8125rem]",
-            hoverId
-              ? "border-border bg-surface shadow-md"
-              : "border-transparent bg-transparent",
+            hoverId ? "border-border bg-surface shadow-md" : "border-transparent bg-transparent",
           )}
           aria-live="polite"
         >
@@ -353,7 +350,9 @@ export default function RegionalProjectMap({
                     <UtilityBadge utilityKey={p.utilityKey} />
                     <span>{p.id}</span>
                   </div>
-                  <p className="m-0 truncate font-medium leading-snug text-text-primary">{p.name}</p>
+                  <p className="m-0 truncate font-medium leading-snug text-text-primary">
+                    {p.name}
+                  </p>
                 </>
               );
             })()
