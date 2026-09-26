@@ -1,0 +1,4 @@
+[run]
+# Run package binaries (vite, tsc, biome) with the bun runtime instead of
+# following their `#!/usr/bin/env node` shebangs, so node is not required.
+bun = true

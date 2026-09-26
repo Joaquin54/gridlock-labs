@@ -1,0 +1,36 @@
+{
+  "name": "gridlock-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "sync-seed": "bun scripts/sync-seed-from-xlsx.mjs"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^7.15.0",
+    "react-simple-maps": "^3.0.0",
+    "recharts": "^3.8.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@tailwindcss/vite": "^4.3.0",
+    "@types/react": "^18.3.28",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^5.1.0",
+    "tailwindcss": "^4.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.0.16",
+    "xlsx": "^0.18.5"
+  },
+  "overrides": {
+    "d3-color": ">=3.1.0"
+  }
+}
