@@ -11,7 +11,7 @@ export default function UtilityBadge({ utilityKey, className }: UtilityBadgeProp
   return (
     <span
       className={cn(
-        "inline-flex items-center px-2 py-0.5 rounded-sm border text-[0.72rem] font-semibold uppercase tracking-wide",
+        "inline-flex items-center whitespace-nowrap rounded-full border px-[0.45rem] py-[0.12rem] font-sans text-[10px] font-medium tracking-[0.01em]",
         utilityBadgeClass(utilityKey),
         className,
       )}

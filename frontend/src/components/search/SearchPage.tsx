@@ -1,10 +1,19 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { searchProjects } from "../../data/repository";
 import type { SearchFilters, UtilityKey } from "../../types/project";
 import { cn } from "../../utils/cn";
 import { formatDateLabel } from "../../utils/format";
 import UtilityBadge from "../shared/UtilityBadge";
+
+const CLS_CONTROL =
+  "box-border w-full min-h-[2.5rem] rounded-sm border-2 border-border-input bg-bg px-[0.7rem] py-[0.48rem] font-sans text-[14px] leading-[1.35] text-text-primary outline-none transition-[border-color] duration-150 hover:border-border-strong focus:border-accent placeholder:text-text-muted";
+
+const CLS_BUTTON_PRIMARY =
+  "box-border min-h-[2.5rem] shrink-0 cursor-pointer whitespace-nowrap rounded-sm border-2 border-accent bg-accent px-4 font-sans text-[14px] font-medium text-white transition-[background,border-color] duration-150 hover:border-accent-hover hover:bg-accent-hover";
+
+const CLS_BUTTON_CLEAR =
+  "box-border min-h-[2.5rem] min-w-[4rem] cursor-pointer whitespace-nowrap rounded-sm border border-red-200/90 bg-red-50 px-4 font-sans text-[13px] font-medium text-red-700 transition-all duration-150 hover:border-red-300 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/45 dark:text-red-300 dark:hover:border-red-800/70 dark:hover:bg-red-950/70";
 
 function parseFilters(params: URLSearchParams): SearchFilters {
   const utility = params.get("utility");
@@ -24,6 +33,25 @@ function filtersToParams(filters: SearchFilters): URLSearchParams {
   if (filters.state) p.set("state", filters.state);
   if (filters.overlapsOnly) p.set("overlaps", "1");
   return p;
+}
+
+function FilterField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex min-w-0 flex-col", className)}>
+      <span className="mb-[0.38rem] whitespace-nowrap text-[12px] font-semibold uppercase tracking-[0.06em] text-text-muted">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
 }
 
 export default function SearchPage() {
@@ -62,122 +90,124 @@ export default function SearchPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold m-0">Search projects</h1>
-        <p className="text-sm text-text-secondary m-0 mt-1">
+    <div className="flex w-full flex-col">
+      <div className="mb-3 flex flex-col gap-1">
+        <h1 className="m-0 text-[1.05rem] font-semibold leading-tight text-text-primary">
+          Search projects
+        </h1>
+        <p className="m-0 text-[0.8125rem] leading-snug text-text-secondary">
           Filter Dominion and Georgia Power projects by name, utility, state, or overlap status.
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="bg-surface border border-border rounded-lg shadow-sm p-4 space-y-3"
+        className="flex flex-col items-stretch gap-[0.4rem] rounded-lg border border-border bg-surface px-3 pt-2.5 pb-3"
       >
-        <label className="block">
-          <span className="text-[0.78rem] uppercase tracking-wide text-text-muted">Keywords</span>
+        <div className="flex min-w-0 items-center gap-2 pt-0.5 pb-1">
           <input
             type="search"
             value={draftQuery}
             onChange={(e) => setDraftQuery(e.target.value)}
             placeholder="Substation, line name, project ID…"
-            className="mt-1 w-full box-border rounded-sm border border-border-input bg-bg px-3 py-2 text-sm text-text-primary outline-none focus:border-accent"
+            aria-label="Search projects"
+            className={CLS_CONTROL}
           />
-        </label>
+          <button type="submit" className={CLS_BUTTON_PRIMARY}>
+            Search
+          </button>
+        </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <label className="block">
-            <span className="text-[0.78rem] uppercase tracking-wide text-text-muted">Utility</span>
+        <div className="flex min-w-0 flex-wrap items-end gap-5">
+          <FilterField
+            label="Utility"
+            className="w-[260px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
+          >
             <select
               value={draftUtility}
               onChange={(e) => setDraftUtility(e.target.value as "" | UtilityKey)}
-              className="mt-1 w-full box-border rounded-sm border border-border-input bg-bg px-3 py-2 text-sm"
+              className={CLS_CONTROL}
             >
               <option value="">All utilities</option>
               <option value="dominion">Dominion Energy (SC)</option>
               <option value="georgia-power">Georgia Power</option>
             </select>
-          </label>
-          <label className="block">
-            <span className="text-[0.78rem] uppercase tracking-wide text-text-muted">State</span>
+          </FilterField>
+
+          <FilterField label="State" className="w-[175px] max-[1100px]:min-w-[120px]">
             <select
               value={draftState}
               onChange={(e) => setDraftState(e.target.value as "" | "GA" | "SC")}
-              className="mt-1 w-full box-border rounded-sm border border-border-input bg-bg px-3 py-2 text-sm"
+              className={CLS_CONTROL}
             >
               <option value="">All states</option>
               <option value="SC">South Carolina</option>
               <option value="GA">Georgia</option>
             </select>
-          </label>
-          <label className="flex items-end gap-2 pb-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={draftOverlapsOnly}
-              onChange={(e) => setDraftOverlapsOnly(e.target.checked)}
-              className="size-4 accent-accent"
-            />
-            <span className="text-sm text-text-primary">Overlaps only</span>
-          </label>
-        </div>
+          </FilterField>
 
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="submit"
-            className="px-4 py-2 rounded-sm bg-accent text-white border-none text-sm font-medium cursor-pointer hover:bg-accent-hover"
-          >
-            Search
-          </button>
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="px-4 py-2 rounded-sm bg-surface-hover border border-border text-sm cursor-pointer hover:border-border-strong"
-          >
-            Clear
-          </button>
+          <FilterField label="Overlaps" className="shrink-0">
+            <label className="inline-flex min-h-[2.5rem] cursor-pointer items-center gap-2 text-[14px] text-text-primary">
+              <input
+                type="checkbox"
+                checked={draftOverlapsOnly}
+                onChange={(e) => setDraftOverlapsOnly(e.target.checked)}
+                className="size-4 accent-accent"
+              />
+              Overlaps only
+            </label>
+          </FilterField>
+
+          <div className="ml-auto shrink-0">
+            <button type="button" onClick={clearFilters} className={CLS_BUTTON_CLEAR}>
+              Clear All
+            </button>
+          </div>
         </div>
       </form>
 
-      <p className="text-sm text-text-secondary m-0">
-        <strong className="text-text-primary">{results.length}</strong> result
+      <p className="m-0 pt-2 pl-1 text-[0.8125rem] text-text-secondary">
+        <strong className="font-medium text-text-primary">{results.length}</strong> result
         {results.length === 1 ? "" : "s"}
       </p>
 
-      <ul className="m-0 p-0 list-none space-y-2">
-        {results.map((p) => (
-          <li key={p.id}>
+      {results.length === 0 ? (
+        <div className="flex flex-col items-center justify-center px-6 py-12 text-center text-text-muted text-[0.92rem]">
+          <strong className="text-[15px] text-text-secondary">No results found</strong>
+          <p className="m-0 mt-1 text-sm">Try adjusting your search terms or filters.</p>
+        </div>
+      ) : (
+        <div className="mt-1.5 flex flex-col gap-px overflow-hidden rounded-lg border border-border bg-border">
+          {results.map((p) => (
             <button
+              key={p.id}
               type="button"
               onClick={() => navigate(`/projects/${p.id}`)}
-              className={cn(
-                "w-full text-left bg-surface border border-border rounded-lg shadow-sm px-4 py-3",
-                "hover:border-border-strong hover:bg-surface-hover transition-colors cursor-pointer",
-              )}
+              className="group cursor-pointer border-none bg-surface px-[1.25rem] py-[0.6rem] text-left transition-[background] duration-100 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]"
             >
-              <div className="flex flex-wrap items-center gap-2 mb-1">
+              <div className="flex items-baseline justify-between gap-4">
+                <h3 className="m-0 min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-[1.4] text-text-primary group-hover:text-accent-hover">
+                  {p.name}
+                </h3>
+                <span className="shrink-0 font-mono text-[0.6875rem] text-text-muted">{p.id}</span>
+              </div>
+              <div className="mt-[0.4rem] flex flex-wrap items-center gap-1.5 text-[12px] leading-none text-text-secondary">
                 <UtilityBadge utilityKey={p.utilityKey} />
-                <span className="font-mono text-[0.72rem] text-text-muted">{p.id}</span>
-                <span className="text-[0.72rem] text-text-muted">{p.state}</span>
+                <span>{p.state}</span>
+                <span className="text-border-strong" aria-hidden>
+                  ·
+                </span>
+                <span>In service {formatDateLabel(p.inServiceDate)}</span>
                 {p.overlapCount > 0 ? (
-                  <span className="text-[0.72rem] font-semibold text-green">
+                  <span className="ml-auto inline-block rounded-full bg-green-light px-[0.42rem] py-[0.12rem] text-[10px] font-medium text-green">
                     {p.overlapCount} overlap{p.overlapCount === 1 ? "" : "s"}
                   </span>
                 ) : null}
               </div>
-              <p className="m-0 font-medium text-text-primary">{p.name}</p>
-              <p className="m-0 mt-1 text-[0.82rem] text-text-secondary">
-                In service {formatDateLabel(p.inServiceDate)}
-              </p>
             </button>
-          </li>
-        ))}
-      </ul>
-
-      {results.length === 0 ? (
-        <div className="text-center py-10 text-text-muted text-sm">
-          No projects match these filters.
+          ))}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

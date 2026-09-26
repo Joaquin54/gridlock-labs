@@ -22,7 +22,7 @@ export default function AppShell({ children, flushMain }: AppShellProps) {
 
   return (
     <div className="grid grid-rows-[auto_minmax(0,1fr)] h-full overflow-hidden font-sans">
-      <header className="bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 h-[50px] gap-3">
+      <header className="bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 h-[50px] gap-4">
         <NavLink
           to="/"
           className="flex items-center gap-[0.4rem] font-semibold text-[15px] text-text-primary no-underline tracking-[0.01em] justify-self-start hover:text-accent"
@@ -40,16 +40,21 @@ export default function AppShell({ children, flushMain }: AppShellProps) {
           </NavLink>
         </nav>
 
-        <div className="flex items-center justify-end gap-2 justify-self-end">
+        <div className="flex items-center justify-end gap-3 justify-self-end">
           <button
             type="button"
             onClick={toggleTheme}
-            className="flex items-center gap-1 px-2 py-1 rounded-sm bg-surface-hover border border-border text-text-secondary text-[12px] cursor-pointer hover:border-border-strong"
+            className="flex items-center gap-[0.4rem] px-[0.65rem] py-[0.3rem] rounded-sm bg-surface-hover border border-border text-text-secondary text-[12px] font-medium cursor-pointer transition-[color,border-color,background] duration-150 hover:border-border-strong hover:text-text-primary hover:bg-surface"
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
           >
-            {theme === "light" ? "Dark" : "Light"}
+            <span className="hidden sm:inline">
+              {theme === "light" ? "Dark mode" : "Light mode"}
+            </span>
+            <span className="text-sm leading-none" aria-hidden="true">
+              {theme === "light" ? "🌙" : "☀️"}
+            </span>
           </button>
-          <span className="hidden sm:inline text-[11px] text-text-muted uppercase tracking-wide">
+          <span className="hidden lg:inline text-[11px] text-text-muted uppercase tracking-[0.06em]">
             Sperry Tech Challenge
           </span>
         </div>

@@ -31,10 +31,10 @@ export default function RegionalProjectMap({
   );
 
   return (
-    <section className={CLS_DASHBOARD_PANEL_SHELL}>
-      <header className={CLS_DASHBOARD_PANEL_HEADER}>SC &amp; GA project footprint</header>
-      <div className="p-3">
-        <div className="relative w-full aspect-[4/3] min-h-[280px] bg-accent-light/40 dark:bg-surface-hover rounded-md overflow-hidden">
+    <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[310px] flex-col")}>
+      <div className={CLS_DASHBOARD_PANEL_HEADER}>SC &amp; GA project footprint</div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="relative w-full flex-1 min-h-[260px] max-h-[380px] bg-accent-light/40 dark:bg-surface-hover rounded-md overflow-hidden">
           <ComposableMap
             projection="geoAlbersUsa"
             width={800}
@@ -93,22 +93,22 @@ export default function RegionalProjectMap({
             </ZoomableGroup>
           </ComposableMap>
         </div>
-        <p className="text-[0.78rem] text-text-muted m-0 mt-2">
+        <p className="m-0 mt-2 text-[0.6875rem] leading-snug text-text-muted">
           {mappable.length} of {projects.length} projects have map centers. Endpoint coordinates may
           still be pending — see project details.
         </p>
         {hoverId ? (
-          <div className="mt-2 p-2 rounded-md border border-border bg-surface text-sm">
+          <div className="mt-2 rounded-md border border-border bg-surface px-[0.875rem] py-[0.625rem] text-[0.8125rem] shadow-md">
             {(() => {
               const p = projects.find((x) => x.id === hoverId);
               if (!p) return null;
               return (
                 <>
-                  <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
                     <UtilityBadge utilityKey={p.utilityKey} />
-                    <span className="font-mono text-[0.72rem] text-text-muted">{p.id}</span>
+                    <span>{p.id}</span>
                   </div>
-                  <p className="m-0 text-text-primary font-medium">{p.name}</p>
+                  <p className="m-0 font-medium leading-snug text-text-primary">{p.name}</p>
                 </>
               );
             })()}

@@ -1,9 +1,18 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { getLinkedProjects, getOverlapsForProject, getProjectById } from "../../data/repository";
-import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
+import {
+  CLS_DASHBOARD_PANEL_HEADER,
+  CLS_DASHBOARD_PANEL_SHELL,
+  CLS_PANEL_ITEM,
+  CLS_PANEL_ITEM_INTERACTIVE,
+  CLS_PANEL_ITEM_META,
+} from "../../utils/chartStyles";
+import { cn } from "../../utils/cn";
 import { formatCoord, formatDateLabel, formatDays, formatMiles } from "../../utils/format";
 import RegionalProjectMap from "../dashboard/RegionalProjectMap";
 import UtilityBadge from "../shared/UtilityBadge";
+
+const CLS_FIELD_LABEL = "m-0 text-[10px] font-semibold uppercase tracking-[0.06em] text-text-muted";
 
 function EndpointBlock({
   title,
@@ -14,10 +23,12 @@ function EndpointBlock({
 }) {
   const pending = endpoint.lat == null || endpoint.lon == null;
   return (
-    <div className="rounded-md border border-border bg-bg p-3">
-      <p className="m-0 text-[0.72rem] uppercase tracking-wide text-text-muted">{title}</p>
-      <p className="m-0 mt-1 font-medium text-text-primary">{endpoint.label?.trim() || "—"}</p>
-      <p className="m-0 mt-2 text-[0.82rem] text-text-secondary font-mono">
+    <div className="rounded-md border border-border bg-bg px-3 py-2.5">
+      <p className={CLS_FIELD_LABEL}>{title}</p>
+      <p className="m-0 mt-1.5 text-[0.8125rem] font-medium leading-snug text-text-primary">
+        {endpoint.label?.trim() || "—"}
+      </p>
+      <p className="m-0 mt-1.5 font-mono text-[0.6875rem] leading-none text-text-secondary">
         {pending ? (
           <span className="text-amber-700 dark:text-amber-300">Coordinates pending</span>
         ) : (
@@ -37,9 +48,9 @@ export default function ProjectDetailPage() {
 
   if (!project) {
     return (
-      <div className="text-center py-16">
-        <p className="text-text-secondary font-medium">Project not found</p>
-        <Link to="/search" className="text-accent text-sm mt-2 inline-block">
+      <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
+        <strong className="text-[15px] text-text-secondary">Project not found</strong>
+        <Link to="/search" className="mt-2 text-[0.8125rem] text-accent-text">
           Back to search
         </Link>
       </div>
@@ -50,35 +61,44 @@ export default function ProjectDetailPage() {
   const linked = getLinkedProjects(project);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4 pb-6">
+    <div className="flex w-full flex-col pb-6">
       <button
         type="button"
         onClick={() => navigate(-1)}
-        className="text-sm text-accent bg-transparent border-none cursor-pointer p-0 hover:underline"
+        className="mb-3 inline-flex w-fit cursor-pointer items-center gap-[0.4rem] rounded-sm border border-border bg-surface-hover px-[0.65rem] py-[0.3rem] text-[12px] font-medium text-text-secondary transition-[color,border-color,background] duration-150 hover:border-border-strong hover:bg-surface hover:text-text-primary"
       >
         ← Back
       </button>
 
-      <header className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2">
+      <header className="mb-3 flex flex-col gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
           <UtilityBadge utilityKey={project.utilityKey} />
-          <span className="font-mono text-sm text-text-muted">{project.id}</span>
-          <span className="text-sm text-text-muted">{project.state}</span>
+          <span>{project.id}</span>
+          <span className="text-border-strong" aria-hidden>
+            ·
+          </span>
+          <span>{project.state}</span>
         </div>
-        <h1 className="text-2xl font-semibold m-0 text-text-primary">{project.name}</h1>
-        <p className="text-sm text-text-secondary m-0">
+        <h1 className="m-0 text-[1.35rem] font-semibold leading-tight text-text-primary">
+          {project.name}
+        </h1>
+        <p className="m-0 text-[0.8125rem] leading-snug text-text-secondary">
           {project.utility} · In service {formatDateLabel(project.inServiceDate)}
         </p>
       </header>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-surface border border-border rounded-lg px-3 py-2">
-          <p className="m-0 text-[0.72rem] uppercase text-text-muted">Overlaps</p>
-          <p className="m-0 text-xl font-semibold">{project.overlapCount}</p>
+      <div className="mb-[0.85rem] grid grid-cols-1 items-stretch gap-3 sm:grid-cols-[auto_1fr]">
+        <div className="rounded-lg border border-border bg-surface px-4 py-[0.9rem] text-center">
+          <div className="font-mono text-[1.45rem] font-bold leading-[1.2] text-accent">
+            {project.overlapCount}
+          </div>
+          <div className="mt-[0.375rem] text-[0.8125rem] leading-tight text-text-secondary">
+            Overlaps
+          </div>
         </div>
-        <div className="bg-surface border border-border rounded-lg px-3 py-2 col-span-2 sm:col-span-3">
-          <p className="m-0 text-[0.72rem] uppercase text-text-muted">Map center</p>
-          <p className="m-0 font-mono text-sm">
+        <div className="flex flex-col justify-center rounded-lg border border-border bg-surface px-4 py-[0.9rem]">
+          <p className={CLS_FIELD_LABEL}>Map center</p>
+          <p className="m-0 mt-1.5 font-mono text-[0.8125rem] leading-none text-text-primary">
             {project.center.lat != null && project.center.lon != null
               ? `${formatCoord(project.center.lat)}, ${formatCoord(project.center.lon)}`
               : "Pending"}
@@ -86,7 +106,7 @@ export default function ProjectDetailPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="mb-[0.85rem] grid grid-cols-1 gap-3 lg:grid-cols-2">
         <EndpointBlock title="Endpoint A" endpoint={project.endpointA} />
         <EndpointBlock title="Endpoint B" endpoint={project.endpointB} />
       </div>
@@ -97,30 +117,42 @@ export default function ProjectDetailPage() {
         onSelectProject={() => undefined}
       />
 
-      <section className={CLS_DASHBOARD_PANEL_SHELL}>
-        <header className={CLS_DASHBOARD_PANEL_HEADER}>Cross-utility overlap records</header>
+      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>Cross-utility overlap records</div>
         {overlaps.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-text-muted m-0">
+          <p className="m-0 py-4 text-center text-[0.8125rem] text-text-muted">
             No overlap pairs for this project.
           </p>
         ) : (
-          <ul className="m-0 p-0 list-none divide-y divide-border">
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {overlaps.map((o) => {
               const otherId = o.projectIdA === project.id ? o.projectIdB : o.projectIdA;
               const otherName = o.projectIdA === project.id ? o.projectNameB : o.projectNameA;
               return (
-                <li key={o.id} className="px-4 py-3">
-                  <div className="flex flex-wrap gap-3 text-[0.78rem] text-text-muted font-mono">
-                    <span>{o.id}</span>
-                    <span>{formatMiles(o.distanceMi)}</span>
-                    <span>{formatDays(o.timeGapDays)}</span>
-                  </div>
+                <li key={o.id}>
                   <button
                     type="button"
-                    className="mt-1 text-sm text-accent font-medium bg-transparent border-none cursor-pointer p-0 hover:underline text-left"
+                    className={cn(
+                      CLS_PANEL_ITEM,
+                      CLS_PANEL_ITEM_INTERACTIVE,
+                      "block w-full text-left",
+                    )}
                     onClick={() => navigate(`/projects/${otherId}`)}
                   >
-                    Paired with: {otherName}
+                    <div className={CLS_PANEL_ITEM_META}>
+                      <span>{o.id}</span>
+                      <span className="text-border-strong" aria-hidden>
+                        ·
+                      </span>
+                      <span>{formatMiles(o.distanceMi)}</span>
+                      <span className="text-border-strong" aria-hidden>
+                        ·
+                      </span>
+                      <span>{formatDays(o.timeGapDays)}</span>
+                    </div>
+                    <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
+                      {otherName}
+                    </span>
                   </button>
                 </li>
               );
@@ -130,21 +162,27 @@ export default function ProjectDetailPage() {
       </section>
 
       {linked.length > 0 ? (
-        <section className={CLS_DASHBOARD_PANEL_SHELL}>
-          <header className={CLS_DASHBOARD_PANEL_HEADER}>Linked projects (sheet references)</header>
-          <ul className="m-0 p-0 list-none divide-y divide-border">
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Linked projects (sheet references)</div>
+          <ul className="m-0 flex list-none flex-col gap-2 p-0">
             {linked.map((lp) => (
               <li key={lp.id}>
                 <button
                   type="button"
                   onClick={() => navigate(`/projects/${lp.id}`)}
-                  className="w-full text-left px-4 py-3 hover:bg-surface-hover bg-transparent border-none cursor-pointer"
+                  className={cn(
+                    CLS_PANEL_ITEM,
+                    CLS_PANEL_ITEM_INTERACTIVE,
+                    "block w-full text-left",
+                  )}
                 >
-                  <div className="flex flex-wrap items-center gap-2 mb-0.5">
+                  <div className={CLS_PANEL_ITEM_META}>
                     <UtilityBadge utilityKey={lp.utilityKey} />
-                    <span className="font-mono text-[0.72rem] text-text-muted">{lp.id}</span>
+                    <span>{lp.id}</span>
                   </div>
-                  <span className="text-sm text-text-primary">{lp.name}</span>
+                  <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
+                    {lp.name}
+                  </span>
                 </button>
               </li>
             ))}
