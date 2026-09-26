@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -32,7 +33,21 @@ import {
   utilityShortLabel,
 } from "../../data/repository";
 import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
-import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
+import {
+  CHART_AXIS_TICK,
+  CHART_LEGEND_BOTTOM,
+  CHART_LEGEND_TOP,
+  CHART_LEGEND_WRAPPER_STYLE,
+  CHART_PIE_SLICE_STROKE,
+  CHART_TOOLTIP_LABEL_STYLE,
+  CHART_TOOLTIP_STYLE,
+  CLS_DASHBOARD_INTRO,
+  CLS_DASHBOARD_PANEL_BODY,
+  CLS_DASHBOARD_PANEL_CAPTION,
+  CLS_DASHBOARD_PANEL_HEADER,
+  CLS_DASHBOARD_PANEL_SHELL,
+  CLS_DASHBOARD_SECTION_TITLE,
+} from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
 import {
   formatCoord,
@@ -48,17 +63,25 @@ import UtilityBadge from "../shared/UtilityBadge";
 import RegionalProjectMap from "./RegionalProjectMap";
 
 const CLS_TH =
-  "px-2 py-[0.36rem] text-[10px] font-semibold uppercase tracking-[0.06em] text-text-muted whitespace-nowrap";
+  "px-2 py-[0.36rem] text-[0.6875rem] font-semibold uppercase tracking-[0.06em] text-text-muted whitespace-nowrap";
 
-const CLS_TD = "px-2 py-[0.42rem] text-text-secondary";
+const CLS_TD = "px-2 py-[0.42rem] text-[0.8125rem] text-text-secondary";
 
-const CHART_TOOLTIP_STYLE = {
-  background: "var(--surface)",
-  border: "1px solid var(--border)",
-  borderRadius: "var(--radius-md)",
-  boxShadow: "var(--shadow-md)",
-  fontSize: "0.8125rem",
-} as const;
+type PieLegendEntry = {
+  payload?: { value?: number };
+};
+
+function pieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
+  const count = entry.payload?.value;
+  if (count == null) return value;
+  return (
+    <span>
+      {value}
+      {"  "}
+      <span className="font-mono text-text-muted opacity-80">{formatCount(count)}</span>
+    </span>
+  );
+}
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -85,7 +108,7 @@ export default function Dashboard() {
         <h1 className="m-0 text-[1.05rem] font-semibold leading-tight text-text-primary">
           Project Overlap Dashboard
         </h1>
-        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
+        <p className={CLS_DASHBOARD_INTRO}>
           Full GPC + Dominion SC portfolio from project listings and the geocode review queue (
           {formatCount(geocodeSummary.totalPoints)} location points). Pilot overlap analysis (
           {formatCount(summary.totalProjects)} curated projects,{" "}
@@ -127,86 +150,105 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
-        <RegionalProjectMap geocodePoints={geocodePoints} title="SC & GA portfolio footprint" />
+        <RegionalProjectMap
+          geocodePoints={geocodePoints}
+          geocodeMarkerColorBy="utility"
+          title="SC & GA portfolio footprint"
+        />
         <div className="flex min-h-[310px] flex-col gap-3">
+          <div className="grid min-h-[210px] flex-1 grid-cols-1 gap-3 min-[901px]:grid-cols-2 min-[901px]:gap-3">
+            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+              <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
+              <div className="min-h-0 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={utilitySplit}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius="68%"
+                      {...CHART_PIE_SLICE_STROKE}
+                    >
+                      {utilitySplit.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(value) => [
+                        `${value} points (${((Number(value) / geocodeSummary.totalPoints) * 100).toFixed(1)}%)`,
+                      ]}
+                    />
+                    <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+              <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
+              <div className="min-h-0 flex-1">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={voltageData}
+                      dataKey="count"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius="68%"
+                      {...CHART_PIE_SLICE_STROKE}
+                    >
+                      {voltageData.map((entry) => (
+                        <Cell key={entry.name} fill={entry.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={(value) => [`${value} projects`]}
+                    />
+                    <Legend
+                      {...CHART_LEGEND_BOTTOM}
+                      wrapperStyle={{ ...CHART_LEGEND_WRAPPER_STYLE, whiteSpace: "nowrap" }}
+                      formatter={pieLegendLabel}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+          </div>
           <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type (unique projects)</div>
             <div className="min-h-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={utilitySplit}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius="42%"
-                    outerRadius="68%"
-                    paddingAngle={3}
-                    strokeWidth={0}
-                  >
-                    {utilitySplit.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={CHART_TOOLTIP_STYLE}
-                    formatter={(value) => [
-                      `${value} points (${((Number(value) / geocodeSummary.totalPoints) * 100).toFixed(1)}%)`,
-                    ]}
-                  />
-                  <Legend
-                    verticalAlign="bottom"
-                    height={28}
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Points by region</div>
-            <div className="min-h-0 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                <BarChart
+                  data={workTypeData}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
                   <XAxis
-                    dataKey="region"
+                    type="number"
+                    allowDecimals={false}
                     tickLine={false}
                     axisLine={{ stroke: "var(--border)" }}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 9 }}
-                    interval={0}
-                    tickFormatter={(v: string) => regionLabel(v).split(" ")[0]}
+                    tick={CHART_AXIS_TICK}
                   />
                   <YAxis
-                    allowDecimals={false}
-                    width={28}
+                    type="category"
+                    dataKey="name"
+                    width={84}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                    tick={CHART_AXIS_TICK}
                   />
                   <Tooltip
                     cursor={{ fill: "var(--surface-hover)" }}
                     contentStyle={CHART_TOOLTIP_STYLE}
-                    labelFormatter={(label) => regionLabel(String(label))}
-                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
-                  <Legend
-                    verticalAlign="top"
-                    height={20}
-                    iconSize={8}
-                    wrapperStyle={{ fontSize: "0.65rem", color: "var(--text-secondary)" }}
-                  />
-                  <Bar dataKey="gpc" name="GPC" stackId="a" fill="var(--georgia)" maxBarSize={32} />
-                  <Bar
-                    dataKey="desc"
-                    name="Dominion"
-                    stackId="a"
-                    fill="var(--dominion)"
-                    maxBarSize={32}
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="count" fill="var(--accent)" maxBarSize={16} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -368,13 +410,13 @@ export default function Dashboard() {
               <p className="m-0 mb-3 text-[0.8125rem] leading-relaxed text-text-secondary">
                 {rankedOpportunities[0].costImpact.explanation}
               </p>
-              <p className="m-0 text-[0.7rem] italic text-text-muted">
+              <p className={cn(CLS_DASHBOARD_PANEL_CAPTION, "italic")}>
                 Estimates use conservative industry averages (FERC/EEI data for rural SE US). Actual
                 savings depend on terrain, permitting, and negotiated land costs.
               </p>
             </div>
             <div className="flex flex-col gap-2 rounded-md border border-border bg-surface px-4 py-3">
-              <div className="text-[0.7rem] font-semibold uppercase tracking-widest text-text-muted">
+              <div className="text-[0.8125rem] font-semibold uppercase tracking-widest text-text-muted">
                 Savings breakdown
               </div>
               <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
@@ -461,93 +503,16 @@ export default function Dashboard() {
 
       {/* ── Portfolio analytics ── */}
       <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
-        <h2 className="m-0 text-[0.95rem] font-semibold leading-tight text-text-primary">
-          Portfolio analytics
-        </h2>
-        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
+        <h2 className={CLS_DASHBOARD_SECTION_TITLE}>Portfolio analytics</h2>
+        <p className={CLS_DASHBOARD_INTRO}>
           Breakdown of {formatCount(geocodeSummary.uniqueProjects)} transmission projects across
           Dominion Energy SC and Georgia Power — voltage, work type, geography, and line-mile scale.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {/* Voltage class donut */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
         <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={voltageData}
-                  dataKey="count"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius="45%"
-                  outerRadius="72%"
-                  paddingAngle={3}
-                  strokeWidth={0}
-                  label={({ name, percent }: { name?: string; percent?: number }) =>
-                    `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
-                  }
-                  labelLine={{ stroke: "var(--text-muted)", strokeWidth: 1 }}
-                >
-                  {voltageData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  formatter={(value) => [`${value} projects`]}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* Work type bars */}
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type (unique projects)</div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={workTypeData}
-                layout="vertical"
-                margin={{ top: 4, right: 12, left: 4, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                <XAxis
-                  type="number"
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--border)" }}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  width={90}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--surface-hover)" }}
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
-                />
-                <Bar dataKey="count" fill="var(--accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* Border vs interior donut */}
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior projects</div>
-          <p className="m-0 mb-1 text-[0.7rem] leading-snug text-text-muted">
-            Projects flagged near the SC/GA state line vs. interior-only.
-          </p>
+          <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior</div>
           <div className="min-h-0 flex-1">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -556,15 +521,11 @@ export default function Dashboard() {
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  innerRadius="40%"
-                  outerRadius="70%"
-                  paddingAngle={4}
+                  cy="46%"
+                  innerRadius="48%"
+                  outerRadius="72%"
+                  paddingAngle={3}
                   strokeWidth={0}
-                  label={({ name, percent }: { name?: string; percent?: number }) =>
-                    `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
-                  }
-                  labelLine={{ stroke: "var(--text-muted)", strokeWidth: 1 }}
                 >
                   {borderData.map((entry) => (
                     <Cell key={entry.name} fill={entry.fill} />
@@ -574,17 +535,16 @@ export default function Dashboard() {
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value) => [`${value} projects`]}
                 />
+                <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </section>
-      </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-2">
         {/* Line miles distribution */}
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[220px] flex-col")}>
+        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
           <div className={CLS_DASHBOARD_PANEL_HEADER}>Line miles distribution</div>
-          <p className="m-0 mb-1 text-[0.7rem] leading-snug text-text-muted">
+          <p className={CLS_DASHBOARD_PANEL_CAPTION}>
             How long are planned transmission line segments?
           </p>
           <div className="min-h-0 flex-1">
@@ -595,7 +555,7 @@ export default function Dashboard() {
                   dataKey="bucket"
                   tickLine={false}
                   axisLine={{ stroke: "var(--border)" }}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  tick={CHART_AXIS_TICK}
                   interval={0}
                 />
                 <YAxis
@@ -603,75 +563,69 @@ export default function Dashboard() {
                   width={32}
                   tickLine={false}
                   axisLine={false}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  tick={CHART_AXIS_TICK}
                 />
                 <Tooltip
                   cursor={{ fill: "var(--surface-hover)" }}
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value) => [`${value} points`, "Count"]}
-                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                  labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                 />
                 <Bar dataKey="count" fill="var(--georgia)" maxBarSize={48} radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </section>
-
-        {/* Region by utility stacked bar */}
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[220px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Region by utility</div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="region"
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--border)" }}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
-                  interval={0}
-                  tickFormatter={(v: string) => regionLabel(v)}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--surface-hover)" }}
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  labelFormatter={(label) => regionLabel(String(label))}
-                  labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
-                />
-                <Legend
-                  verticalAlign="top"
-                  height={24}
-                  iconSize={10}
-                  wrapperStyle={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}
-                />
-                <Bar
-                  dataKey="gpc"
-                  name="Georgia Power"
-                  stackId="a"
-                  fill="var(--georgia)"
-                  maxBarSize={48}
-                  radius={[0, 0, 0, 0]}
-                />
-                <Bar
-                  dataKey="desc"
-                  name="Dominion (SC)"
-                  stackId="a"
-                  fill="var(--dominion)"
-                  maxBarSize={48}
-                  radius={[6, 6, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
       </div>
+
+      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-3 flex min-h-[260px] flex-col")}>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>Region by utility</div>
+        <div className="min-h-0 flex-1">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+              <XAxis
+                dataKey="region"
+                tickLine={false}
+                axisLine={{ stroke: "var(--border)" }}
+                tick={CHART_AXIS_TICK}
+                interval={0}
+                tickFormatter={(v: string) => regionLabel(v)}
+              />
+              <YAxis
+                allowDecimals={false}
+                width={32}
+                tickLine={false}
+                axisLine={false}
+                tick={CHART_AXIS_TICK}
+              />
+              <Tooltip
+                cursor={{ fill: "var(--surface-hover)" }}
+                contentStyle={CHART_TOOLTIP_STYLE}
+                labelFormatter={(label) => regionLabel(String(label))}
+                labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+              />
+              <Legend {...CHART_LEGEND_TOP} />
+              <Bar
+                dataKey="gpc"
+                name="Georgia Power"
+                stackId="a"
+                fill="var(--georgia)"
+                maxBarSize={48}
+                radius={[0, 0, 0, 0]}
+              />
+              <Bar
+                dataKey="desc"
+                name="Dominion (SC)"
+                stackId="a"
+                fill="var(--dominion)"
+                maxBarSize={48}
+                radius={[6, 6, 0, 0]}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </section>
 
       {/* Utility split — small donut beside the overlap pairs */}
       <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[1fr_0.6fr]">
@@ -705,7 +659,7 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <ul className="m-0 flex list-none flex-col gap-3 p-0 text-[0.8125rem]">
+            <ul className={cn("m-0 flex list-none flex-col gap-3 p-0", CLS_DASHBOARD_PANEL_BODY)}>
               {utilitySplit.map((u) => (
                 <li key={u.name} className="flex items-center gap-2">
                   <span
@@ -722,7 +676,9 @@ export default function Dashboard() {
 
         <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
           <div className={CLS_DASHBOARD_PANEL_HEADER}>Key metrics</div>
-          <ul className="m-0 flex list-none flex-col gap-[0.7rem] p-0 text-[0.8125rem]">
+          <ul
+            className={cn("m-0 flex list-none flex-col gap-[0.7rem] p-0", CLS_DASHBOARD_PANEL_BODY)}
+          >
             <li className="flex items-baseline justify-between gap-2">
               <span className="text-text-secondary">Unique projects</span>
               <span className="font-mono font-semibold text-text-primary">
@@ -757,10 +713,8 @@ export default function Dashboard() {
 
       {/* ── Geocode review queue ── */}
       <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
-        <h2 className="m-0 text-[0.95rem] font-semibold leading-tight text-text-primary">
-          Geocode review queue
-        </h2>
-        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
+        <h2 className={CLS_DASHBOARD_SECTION_TITLE}>Geocode review queue</h2>
+        <p className={CLS_DASHBOARD_INTRO}>
           Point-level locations extracted from utility project descriptions. Tasks progress from
           FIND → CONFIRM; confidence reflects how sure we are in lat/lon until field verification
           completes.
@@ -804,20 +758,20 @@ export default function Dashboard() {
                     allowDecimals={false}
                     tickLine={false}
                     axisLine={{ stroke: "var(--border)" }}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                    tick={CHART_AXIS_TICK}
                   />
                   <YAxis
                     type="category"
                     dataKey="task"
-                    width={56}
+                    width={64}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                    tick={CHART_AXIS_TICK}
                   />
                   <Tooltip
                     cursor={{ fill: "var(--surface-hover)" }}
                     contentStyle={CHART_TOOLTIP_STYLE}
-                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
                   <Bar dataKey="count" fill="var(--accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
                 </BarChart>
@@ -837,7 +791,7 @@ export default function Dashboard() {
                     dataKey="name"
                     tickLine={false}
                     axisLine={{ stroke: "var(--border)" }}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                    tick={CHART_AXIS_TICK}
                     interval={0}
                     angle={-20}
                     textAnchor="end"
@@ -848,12 +802,12 @@ export default function Dashboard() {
                     width={32}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                    tick={CHART_AXIS_TICK}
                   />
                   <Tooltip
                     cursor={{ fill: "var(--surface-hover)" }}
                     contentStyle={CHART_TOOLTIP_STYLE}
-                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
                   <Bar dataKey="count" maxBarSize={48} radius={[6, 6, 0, 0]}>
                     {geocodeCharts.confidenceBars.map((entry) => (
@@ -879,15 +833,15 @@ export default function Dashboard() {
                     allowDecimals={false}
                     tickLine={false}
                     axisLine={{ stroke: "var(--border)" }}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                    tick={CHART_AXIS_TICK}
                   />
                   <YAxis
                     type="category"
                     dataKey="region"
-                    width={88}
+                    width={96}
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                    tick={CHART_AXIS_TICK}
                     tickFormatter={(v: string) => regionLabel(v)}
                   />
                   <Tooltip
@@ -895,7 +849,7 @@ export default function Dashboard() {
                     contentStyle={CHART_TOOLTIP_STYLE}
                     formatter={(value) => [value, "Points"]}
                     labelFormatter={(label) => regionLabel(String(label))}
-                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
                   <Bar
                     dataKey="count"

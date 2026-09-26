@@ -88,11 +88,11 @@ export function getReviewQueueChartData() {
       count: summary.byConfidence[confidence],
       fill:
         confidence === "high"
-          ? "var(--green)"
+          ? "var(--map-marker-high)"
           : confidence === "medium"
-            ? "var(--accent)"
+            ? "var(--map-marker-medium)"
             : confidence === "low"
-              ? "var(--dominion)"
+              ? "var(--map-marker-low)"
               : "var(--text-muted)",
     })),
     regionData: summary.byRegion.slice(0, 6).map((r) => ({
@@ -174,11 +174,11 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
     }
   }
   const fills: Record<VoltageClass, string> = {
-    "500 kV": "var(--dominion)",
-    "230 kV": "var(--accent)",
-    "115 kV": "var(--georgia)",
-    "46 kV": "var(--green)",
-    Other: "var(--text-muted)",
+    "500 kV": "var(--voltage-500)",
+    "230 kV": "var(--voltage-230)",
+    "115 kV": "var(--voltage-115)",
+    "46 kV": "var(--voltage-46)",
+    Other: "var(--voltage-other)",
   };
   const order: VoltageClass[] = ["500 kV", "230 kV", "115 kV", "46 kV", "Other"];
   return order
@@ -232,8 +232,8 @@ export function getBorderBreakdown(): Array<{ name: string; value: number; fill:
     else interior++;
   }
   return [
-    { name: "Cross-state border", value: border, fill: "var(--dominion)" },
-    { name: "Interior", value: interior, fill: "var(--georgia)" },
+    { name: "Cross-state border", value: border, fill: "var(--accent)" },
+    { name: "Interior", value: interior, fill: "var(--green)" },
   ];
 }
 

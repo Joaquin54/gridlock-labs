@@ -42,11 +42,11 @@ export function regionLabel(region: string): string {
 export function confidenceMarkerFill(confidence: GeocodeConfidence): string {
   switch (confidence) {
     case "high":
-      return "var(--green)";
+      return "var(--map-marker-high)";
     case "medium":
-      return "var(--accent)";
+      return "var(--map-marker-medium)";
     case "low":
-      return "var(--dominion)";
+      return "var(--map-marker-low)";
     default:
       return "var(--text-muted)";
   }

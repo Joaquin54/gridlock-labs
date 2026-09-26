@@ -6,6 +6,69 @@ export const CLS_DASHBOARD_PANEL_SHELL =
 export const CLS_DASHBOARD_PANEL_HEADER =
   "shrink-0 text-text-primary text-[0.9rem] font-semibold mb-[0.65rem]";
 
+/** Muted helper line under a panel title (charts). */
+export const CLS_DASHBOARD_PANEL_CAPTION = "m-0 mb-1 text-[0.8125rem] leading-snug text-text-muted";
+
+/** In-panel list / key-value rows (matches chart tooltip size). */
+export const CLS_DASHBOARD_PANEL_BODY = "text-[0.8125rem] text-text-secondary";
+
+/** Section intro blurb under page / analytics headings. */
+export const CLS_DASHBOARD_INTRO =
+  "m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary";
+
+/** Major section heading (below page title). */
+export const CLS_DASHBOARD_SECTION_TITLE =
+  "m-0 text-[0.95rem] font-semibold leading-tight text-text-primary";
+
+/** Recharts axis ticks (px). */
+export const CHART_TICK_FONT_SIZE = 12;
+
+export const CHART_AXIS_TICK = {
+  fill: "var(--text-secondary)",
+  fontSize: CHART_TICK_FONT_SIZE,
+} as const;
+
+export const CHART_LEGEND_WRAPPER_STYLE = {
+  fontSize: "0.8125rem",
+  color: "var(--text-secondary)",
+  lineHeight: "1.25",
+} as const;
+
+export const CHART_LEGEND_ICON_SIZE = 12;
+
+export const CHART_LEGEND_BOTTOM = {
+  verticalAlign: "bottom" as const,
+  height: 36,
+  iconSize: CHART_LEGEND_ICON_SIZE,
+  wrapperStyle: CHART_LEGEND_WRAPPER_STYLE,
+};
+
+export const CHART_LEGEND_TOP = {
+  verticalAlign: "top" as const,
+  height: 28,
+  iconSize: CHART_LEGEND_ICON_SIZE,
+  wrapperStyle: CHART_LEGEND_WRAPPER_STYLE,
+};
+
+export const CHART_TOOLTIP_STYLE = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-md)",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "0.8125rem",
+} as const;
+
+/** Pie slice separators — radial strokes (constant width), not paddingAngle gaps. */
+export const CHART_PIE_SLICE_STROKE = {
+  stroke: "var(--surface)",
+  strokeWidth: 2,
+} as const;
+
+export const CHART_TOOLTIP_LABEL_STYLE = {
+  color: "var(--text-primary)",
+  fontWeight: 600,
+} as const;
+
 /** Inset row/card sitting on the panel background. */
 export const CLS_PANEL_ITEM = "rounded-md border border-border bg-bg px-2.5 py-2";
 
