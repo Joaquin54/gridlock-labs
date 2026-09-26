@@ -1,8 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
+import type { ReviewQueuePoint } from "../../types/geocode";
+import {
+  confidenceMarkerFill,
+  utilityKeyFromQueueCode,
+} from "../../types/geocode";
 import type { GridlockProject } from "../../types/project";
 import { CLS_DASHBOARD_PANEL_HEADER, CLS_DASHBOARD_PANEL_SHELL } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
+import ConfidenceBadge from "../shared/ConfidenceBadge";
+import TaskBadge from "../shared/TaskBadge";
 import UtilityBadge from "../shared/UtilityBadge";
 
 const STATES_GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
@@ -38,12 +45,12 @@ const MARKER_RADIUS_ACTIVE = 2.75;
 const MARKER_LEGACY_REFERENCE_ZOOM = 4.5;
 
 /** Map-space radius: legacy size at default zoom; shrinks when zooming in further. */
-function markerRadiusForZoom(zoom: number, active: boolean): number {
-  const base = active ? MARKER_RADIUS_ACTIVE : MARKER_RADIUS;
+function markerRadiusForZoom(zoom: number, active: boolean, baseRadius: number, activeRadius: number): number {
+  const base = active ? activeRadius : baseRadius;
   const calibration =
     MARKER_LEGACY_REFERENCE_ZOOM * MAP_DEFAULT_POSITION.zoom ** 0.35;
   const scaled = (base * calibration) / zoom ** 1.35;
-  return Math.min(base * 1.75, Math.max(0.2, scaled));
+  return Math.min(base * 1.75, Math.max(0.15, scaled));
 }
 
 type StateGeo = {
@@ -58,27 +65,44 @@ type CountyGeo = {
 };
 
 type RegionalProjectMapProps = {
-  projects: GridlockProject[];
+  projects?: GridlockProject[];
+  geocodePoints?: ReviewQueuePoint[];
   onSelectProject?: (projectId: string) => void;
   selectedProjectId?: string | null;
+  title?: string;
 };
 
 export default function RegionalProjectMap({
-  projects,
+  projects = [],
+  geocodePoints,
   onSelectProject,
   selectedProjectId,
+  title = "SC & GA project footprint",
 }: RegionalProjectMapProps) {
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [hoverCounty, setHoverCounty] = useState<{ name: string; fips: string } | null>(null);
   const [mapPosition, setMapPosition] = useState<MapPosition>(MAP_DEFAULT_POSITION);
 
-  const mappable = useMemo(
+  const useGeocode = Boolean(geocodePoints?.length);
+
+  const mappableGeocode = useMemo(
+    () =>
+      (geocodePoints ?? []).filter(
+        (p) => p.lat != null && p.lon != null && !Number.isNaN(p.lat),
+      ),
+    [geocodePoints],
+  );
+
+  const mappableProjects = useMemo(
     () =>
       projects.filter(
         (p) => p.center.lat != null && p.center.lon != null && !Number.isNaN(p.center.lat),
       ),
     [projects],
   );
+
+  const markerBase = useGeocode ? 1.35 : MARKER_RADIUS;
+  const markerActive = useGeocode ? 1.85 : MARKER_RADIUS_ACTIVE;
 
   const handleMoveEnd = useCallback((position: MapPosition) => {
     setMapPosition(position);
@@ -100,7 +124,7 @@ export default function RegionalProjectMap({
   return (
     <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[380px] flex-col")}>
       <div className="mb-[0.65rem] flex flex-wrap items-center justify-between gap-2">
-        <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "mb-0")}>SC &amp; GA project footprint</div>
+        <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "mb-0")}>{title}</div>
         <div className="flex items-center gap-1 shrink-0">
           <button
             type="button"
@@ -218,34 +242,78 @@ export default function RegionalProjectMap({
                 }
               </Geographies>
 
-              {mappable.map((p) => {
-                const active = p.id === selectedProjectId || p.id === hoverId;
-                const r = markerRadiusForZoom(mapPosition.zoom, active);
-                return (
-                  <Marker
-                    key={p.id}
-                    coordinates={[p.center.lon as number, p.center.lat as number]}
-                    onMouseEnter={() => setHoverId(p.id)}
-                    onMouseLeave={() => setHoverId((id) => (id === p.id ? null : id))}
-                    onClick={() => onSelectProject?.(p.id)}
-                  >
-                    <circle
-                      r={r}
-                      fill={p.utilityKey === "dominion" ? "var(--dominion)" : "var(--georgia)"}
-                      stroke="#ffffff"
-                      strokeWidth={1}
-                      vectorEffect="non-scaling-stroke"
-                      className="cursor-pointer transition-[r] duration-150"
-                    />
-                  </Marker>
-                );
-              })}
+              {useGeocode
+                ? mappableGeocode.map((p) => {
+                    const active = p.id === hoverId;
+                    const r = markerRadiusForZoom(
+                      mapPosition.zoom,
+                      active,
+                      markerBase,
+                      markerActive,
+                    );
+                    return (
+                      <Marker
+                        key={p.id}
+                        coordinates={[p.lon as number, p.lat as number]}
+                        onMouseEnter={() => setHoverId(p.id)}
+                        onMouseLeave={() => setHoverId((id) => (id === p.id ? null : id))}
+                        onClick={() => {
+                          if (p.googleMapsUrl) window.open(p.googleMapsUrl, "_blank", "noopener");
+                        }}
+                      >
+                        <circle
+                          r={r}
+                          fill={confidenceMarkerFill(p.confidence)}
+                          stroke="#ffffff"
+                          strokeWidth={1}
+                          vectorEffect="non-scaling-stroke"
+                          className="cursor-pointer transition-[r] duration-150"
+                        />
+                      </Marker>
+                    );
+                  })
+                : mappableProjects.map((p) => {
+                    const active = p.id === selectedProjectId || p.id === hoverId;
+                    const r = markerRadiusForZoom(
+                      mapPosition.zoom,
+                      active,
+                      markerBase,
+                      markerActive,
+                    );
+                    return (
+                      <Marker
+                        key={p.id}
+                        coordinates={[p.center.lon as number, p.center.lat as number]}
+                        onMouseEnter={() => setHoverId(p.id)}
+                        onMouseLeave={() => setHoverId((id) => (id === p.id ? null : id))}
+                        onClick={() => onSelectProject?.(p.id)}
+                      >
+                        <circle
+                          r={r}
+                          fill={p.utilityKey === "dominion" ? "var(--dominion)" : "var(--georgia)"}
+                          stroke="#ffffff"
+                          strokeWidth={1}
+                          vectorEffect="non-scaling-stroke"
+                          className="cursor-pointer transition-[r] duration-150"
+                        />
+                      </Marker>
+                    );
+                  })}
             </ZoomableGroup>
           </ComposableMap>
         </div>
         <p className="m-0 mt-2 text-[0.6875rem] leading-snug text-text-muted">
-          Drag to pan, scroll to zoom (SC &amp; GA counties). {mappable.length} of {projects.length}{" "}
-          projects have map centers.
+          Drag to pan, scroll to zoom.{" "}
+          {useGeocode ? (
+            <>
+              {mappableGeocode.length} located points ({geocodePoints?.length ?? 0} in queue). Dot
+              color: high / medium / low confidence.
+            </>
+          ) : (
+            <>
+              {mappableProjects.length} of {projects.length} projects have map centers.
+            </>
+          )}
         </p>
         <div
           className={cn(
@@ -258,6 +326,25 @@ export default function RegionalProjectMap({
         >
           {hoverId ? (
             (() => {
+              if (useGeocode) {
+                const p = mappableGeocode.find((x) => x.id === hoverId);
+                if (!p) return null;
+                return (
+                  <>
+                    <div className="mb-1 flex flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
+                      <UtilityBadge utilityKey={utilityKeyFromQueueCode(p.utility)} />
+                      <TaskBadge task={p.task} />
+                      <ConfidenceBadge confidence={p.confidence} />
+                    </div>
+                    <p className="m-0 truncate font-medium leading-snug text-text-primary">
+                      {p.pointName}
+                    </p>
+                    <p className="m-0 mt-0.5 truncate text-[0.75rem] text-text-secondary">
+                      {p.projectName}
+                    </p>
+                  </>
+                );
+              }
               const p = projects.find((x) => x.id === hoverId);
               if (!p) return null;
               return (
@@ -271,7 +358,7 @@ export default function RegionalProjectMap({
               );
             })()
           ) : (
-            <span className="sr-only">Hover a project on the map for details</span>
+            <span className="sr-only">Hover a point on the map for details</span>
           )}
         </div>
       </div>

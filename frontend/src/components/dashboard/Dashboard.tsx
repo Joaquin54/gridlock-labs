@@ -1,12 +1,19 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   getAllOverlaps,
   getAllProjects,
   getDashboardSummary,
   utilityShortLabel,
 } from "../../data/repository";
+import {
+  getAllReviewQueuePoints,
+  getGeocodeDashboardSummary,
+  getReviewQueueChartData,
+  getReviewQueuePrioritySample,
+} from "../../data/geocodeRepository";
+import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
 import {
   CLS_DASHBOARD_PANEL_HEADER,
   CLS_DASHBOARD_PANEL_SHELL,
@@ -15,8 +22,10 @@ import {
   CLS_PANEL_ITEM_META,
 } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
-import { formatCount, formatDateLabel, formatMiles } from "../../utils/format";
+import { formatCoord, formatCount, formatDateLabel, formatMiles, formatPercent } from "../../utils/format";
+import ConfidenceBadge from "../shared/ConfidenceBadge";
 import StatCard from "../shared/StatCard";
+import TaskBadge from "../shared/TaskBadge";
 import UtilityBadge from "../shared/UtilityBadge";
 import RegionalProjectMap from "./RegionalProjectMap";
 
@@ -25,11 +34,23 @@ const CLS_TH =
 
 const CLS_TD = "px-2 py-[0.42rem] text-text-secondary";
 
+const CHART_TOOLTIP_STYLE = {
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: "var(--radius-md)",
+  boxShadow: "var(--shadow-md)",
+  fontSize: "0.8125rem",
+} as const;
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const projects = getAllProjects();
   const overlaps = getAllOverlaps();
   const summary = getDashboardSummary();
+  const geocodeSummary = getGeocodeDashboardSummary();
+  const geocodeCharts = getReviewQueueChartData();
+  const geocodePoints = getAllReviewQueuePoints();
+  const reviewPriority = getReviewQueuePrioritySample(14);
 
   const utilityChartData = useMemo(
     () => [
@@ -64,7 +85,8 @@ export default function Dashboard() {
         </h1>
         <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
           Dominion Energy (South Carolina) and Georgia Power transmission projects — spatial and
-          schedule overlap signals from the current pilot dataset.
+          schedule overlap from the pilot dataset, plus a geocode review queue from Dominion
+          2024–2028 project listings (coordinates still being verified).
         </p>
       </div>
 
@@ -233,6 +255,223 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+      </section>
+
+      <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
+        <h2 className="m-0 text-[0.95rem] font-semibold leading-tight text-text-primary">
+          Geocode review queue
+        </h2>
+        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
+          Point-level locations extracted from utility project descriptions. Tasks progress from FIND
+          → CONFIRM; confidence reflects how sure we are in lat/lon until field verification
+          completes.
+        </p>
+      </div>
+
+      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
+        <StatCard label="Queue points" value={formatCount(geocodeSummary.totalPoints)} />
+        <StatCard
+          label="With coordinates"
+          value={formatPercent(geocodeSummary.locatedPct, 1)}
+          accent="green"
+        />
+        <StatCard
+          label="Still to locate (FIND)"
+          value={formatCount(geocodeSummary.findRemaining)}
+          accent="dominion"
+        />
+        <StatCard
+          label="High confidence"
+          value={formatCount(geocodeSummary.highConfidence)}
+          accent="georgia"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
+        <RegionalProjectMap
+          geocodePoints={geocodePoints}
+          title="Coordinate verification map"
+        />
+        <div className="flex min-h-[310px] flex-col gap-3">
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[140px] flex-1 flex-col")}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Review task backlog</div>
+            <div className="min-h-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={geocodeCharts.taskData}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="task"
+                    width={56}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                  />
+                  <Bar dataKey="count" fill="var(--accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[140px] flex-1 flex-col")}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Confidence mix</div>
+            <div className="min-h-0 flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={geocodeCharts.confidenceBars}
+                  margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                    interval={0}
+                    angle={-20}
+                    textAnchor="end"
+                    height={48}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    width={32}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                  />
+                  <Bar dataKey="count" maxBarSize={48} radius={[6, 6, 0, 0]}>
+                    {geocodeCharts.confidenceBars.map((entry) => (
+                      <Cell key={entry.name} fill={entry.fill} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[120px] flex-col")}>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Top regions</div>
+            <div className="min-h-[100px] flex-1">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={geocodeCharts.regionData}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis
+                    type="number"
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={{ stroke: "var(--border)" }}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="region"
+                    width={88}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: "var(--text-secondary)", fontSize: 10 }}
+                    tickFormatter={(v: string) => regionLabel(v)}
+                  />
+                  <Tooltip
+                    cursor={{ fill: "var(--surface-hover)" }}
+                    contentStyle={CHART_TOOLTIP_STYLE}
+                    formatter={(value) => [value, "Points"]}
+                    labelFormatter={(label) => regionLabel(String(label))}
+                    labelStyle={{ color: "var(--text-primary)", fontWeight: 600 }}
+                  />
+                  <Bar dataKey="count" fill="var(--georgia)" maxBarSize={16} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
+        <div className={CLS_DASHBOARD_PANEL_HEADER}>Priority review (FIND & low confidence first)</div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[0.8125rem]">
+            <thead>
+              <tr className="border-b-2 border-border-strong text-left">
+                <th className={CLS_TH}>Utility</th>
+                <th className={CLS_TH}>Task</th>
+                <th className={CLS_TH}>Confidence</th>
+                <th className={CLS_TH}>Point</th>
+                <th className={CLS_TH}>Region</th>
+                <th className={cn(CLS_TH, "text-right")}>Lat</th>
+                <th className={cn(CLS_TH, "text-right")}>Lon</th>
+                <th className={cn(CLS_TH, "text-right")}>Links</th>
+              </tr>
+            </thead>
+            <tbody>
+              {reviewPriority.map((p) => (
+                <tr key={p.id} className="border-b border-border last:border-b-0">
+                  <td className={CLS_TD}>
+                    <UtilityBadge utilityKey={utilityKeyFromQueueCode(p.utility)} />
+                  </td>
+                  <td className={CLS_TD}>
+                    <TaskBadge task={p.task} />
+                  </td>
+                  <td className={CLS_TD}>
+                    <ConfidenceBadge confidence={p.confidence} />
+                  </td>
+                  <td className={cn(CLS_TD, "max-w-[14rem] truncate text-text-primary")} title={p.pointName}>
+                    {p.pointName}
+                  </td>
+                  <td className={CLS_TD}>{regionLabel(p.region)}</td>
+                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
+                    {formatCoord(p.lat)}
+                  </td>
+                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
+                    {formatCoord(p.lon)}
+                  </td>
+                  <td className={cn(CLS_TD, "text-right")}>
+                    {p.googleMapsUrl ? (
+                      <a
+                        href={p.googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-text hover:underline"
+                      >
+                        Map
+                      </a>
+                    ) : (
+                      <span className="text-text-muted">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="m-0 mt-2 text-[0.6875rem] text-text-muted">
+          {formatCount(geocodeSummary.uniqueProjects)} distinct projects ·{" "}
+          {formatCount(geocodeSummary.withCoordinates)} of {formatCount(geocodeSummary.totalPoints)}{" "}
+          points have coordinates. Regenerate from CSV:{" "}
+          <code className="font-mono text-[0.65rem]">bun run sync-review-queue</code>
+        </p>
       </section>
     </div>
   );

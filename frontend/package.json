@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "sync-seed": "bun scripts/sync-seed-from-xlsx.mjs"
+    "sync-seed": "bun scripts/sync-seed-from-xlsx.mjs",
+    "sync-review-queue": "bun scripts/sync-review-queue.mjs"
   },
   "dependencies": {
     "react": "^18.3.1",
