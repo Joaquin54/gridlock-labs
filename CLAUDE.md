@@ -1,3 +1,43 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Project: Gridlock (ShellHacks 2026)
+
+Dashboard that maps transmission projects from two utilities (Dominion Energy SC, Georgia Power) and flags pairs that overlap in space (`distanceMi`) and time (`timeGapDays`).
+
+## Commands
+
+Bun is the only runtime (no Node). `frontend/bunfig.toml` sets `[run] bun = true` so vite/tsc/biome run under Bun despite `node` shebangs.
+
+Frontend (`cd frontend`):
+- `bun run dev` — Vite on `0.0.0.0:5173` (`strictPort`, fails if taken)
+- `bun run build` — `tsc --noEmit` then `vite build`
+- `bun run typecheck` / `bun run lint` (`biome check .`) / `bun run format` (`biome check --write .`)
+- `bun run sync-seed` — regenerate `src/data/seed.json` from `Sperry-Tech-Challenge/Projects_Overlaps.xlsx` at repo root (gitignored; comes from challenge materials)
+
+Backend (`cd backend`):
+- `bun run dev` — `bun run --hot src/index.ts`, port 3000
+
+No test framework is configured in either package. Backend has no lint script or biome config yet.
+
+Docker/docker-compose is the planned dev environment but no compose file exists yet. No local Postgres: DB is hosted on Tiger Data via `DATABASE_URL` (`?sslmode=require`).
+
+## Architecture
+
+- **Frontend has no backend dependency today.** All data comes from static `frontend/src/data/seed.json` through `frontend/src/data/repository.ts`, which is the single data-access layer (lookup maps, search filtering, dashboard summary, utility labels/badge classes). Components call repository functions synchronously — swapping to the API later means changing `repository.ts` (and making calls async), not the components.
+- **Data pipeline:** xlsx `projects` + `overlaps` sheets → `scripts/sync-seed-from-xlsx.mjs` → `seed.json` → `repository.ts` adds derived `utilityKey` (`"dominion"` if utility name contains "dominion", else `"georgia-power"`). Types live in `src/types/project.ts`; lat/lon, labels, and dates are nullable and code must handle missing coordinates.
+- Overlaps are referenced two ways: per-project `overlapProjectIds` (from `overlap_1..3` columns) and the standalone `overlaps` list keyed by `projectIdA`/`projectIdB`.
+- **Routing** (`App.tsx`): `/` dashboard, `/search`, `/projects/:projectId`; pages lazy-loaded; `/dashboard` and unknown paths redirect to `/`. `AppShell` gets `flushMain` on the dashboard.
+- **Styling:** Tailwind v4 with CSS-var design tokens in `src/index.css` `@theme` (e.g. `bg-surface`, `text-text-muted`, `text-dominion`, `bg-georgia-light`) — use these tokens, not raw colors. Dark mode is `[data-theme="dark"]` on `<html>`, set by `useTheme` (persisted to localStorage `gridlock-theme`). Chart theming in `utils/chartStyles.ts`; `cn` helper in `utils/cn.ts`.
+- **Backend:** Hono scaffold with only `GET /`. Drizzle ORM, `postgres` driver, drizzle-kit, and Scalar API reference are installed but unwired; no schema or migrations exist.
+
+## Style notes
+
+Frontend Biome: 2-space, double quotes, 100-char lines; ignores `seed.json` and `index.css`. Backend file currently uses single quotes / no semicolons (Hono template) — match neighboring code.
+
+---
+
 # Global Engineering Directives (v2 — tiered)
 
 ## Prompt Contract
