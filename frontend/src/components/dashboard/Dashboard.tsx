@@ -60,9 +60,9 @@ export default function Dashboard() {
     <div className="flex w-full flex-col px-6 py-[1.1rem] max-[900px]:px-3 max-[900px]:py-3">
       <div className="mb-3 flex flex-col gap-1">
         <h1 className="m-0 text-[1.05rem] font-semibold leading-tight text-text-primary">
-          Gridlock overlap dashboard
+          Project Overlap Dashboard
         </h1>
-        <p className="m-0 max-w-3xl text-[0.8125rem] leading-snug text-text-secondary">
+        <p className="m-0 max-w-5xl text-[0.8125rem] leading-snug text-text-secondary">
           Dominion Energy (South Carolina) and Georgia Power transmission projects — spatial and
           schedule overlap signals from the current pilot dataset.
         </p>
