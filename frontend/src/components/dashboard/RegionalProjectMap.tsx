@@ -9,6 +9,13 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
 
 const HIGHLIGHT_STATES = new Set(["South Carolina", "Georgia"]);
 
+/** Zoom/center tuned for SC + GA while keeping the full US in frame (geoAlbersUsa). */
+const MAP_CENTER: [number, number] = [-82.25, 32.85];
+const MAP_ZOOM = 6;
+
+const MARKER_RADIUS = 2;
+const MARKER_RADIUS_ACTIVE = 2.75;
+
 type RegionalProjectMapProps = {
   projects: GridlockProject[];
   onSelectProject?: (projectId: string) => void;
@@ -31,17 +38,17 @@ export default function RegionalProjectMap({
   );
 
   return (
-    <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[310px] flex-col")}>
+    <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[380px] flex-col")}>
       <div className={CLS_DASHBOARD_PANEL_HEADER}>SC &amp; GA project footprint</div>
       <div className="flex min-h-0 flex-1 flex-col">
-        <div className="relative w-full flex-1 min-h-[260px] max-h-[380px] bg-accent-light/40 dark:bg-surface-hover rounded-md overflow-hidden">
+        <div className="relative w-full flex-1 min-h-[310px] max-h-[500px] bg-accent-light/40 dark:bg-surface-hover rounded-md overflow-hidden">
           <ComposableMap
             projection="geoAlbersUsa"
             width={800}
             height={600}
             style={{ width: "100%", height: "100%" }}
           >
-            <ZoomableGroup center={[-82.5, 32.8]} zoom={3.2}>
+            <ZoomableGroup center={MAP_CENTER} zoom={MAP_ZOOM}>
               <Geographies geography={GEO_URL}>
                 {({
                   geographies,
@@ -70,7 +77,6 @@ export default function RegionalProjectMap({
               </Geographies>
               {mappable.map((p) => {
                 const active = p.id === selectedProjectId || p.id === hoverId;
-                const hasOverlap = p.overlapCount > 0;
                 return (
                   <Marker
                     key={p.id}
@@ -80,12 +86,12 @@ export default function RegionalProjectMap({
                     onClick={() => onSelectProject?.(p.id)}
                   >
                     <circle
-                      r={active ? 7 : hasOverlap ? 6 : 5}
-                      className={cn(
-                        "cursor-pointer transition-all duration-150",
-                        p.utilityKey === "dominion" ? "fill-dominion" : "fill-georgia",
-                        hasOverlap ? "stroke-white stroke-[2px]" : "stroke-transparent",
-                      )}
+                      r={active ? MARKER_RADIUS_ACTIVE : MARKER_RADIUS}
+                      fill={p.utilityKey === "dominion" ? "var(--dominion)" : "var(--georgia)"}
+                      stroke="#ffffff"
+                      strokeWidth={1}
+                      vectorEffect="non-scaling-stroke"
+                      className="cursor-pointer transition-[r] duration-150"
                     />
                   </Marker>
                 );
