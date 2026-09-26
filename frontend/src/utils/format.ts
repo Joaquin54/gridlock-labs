@@ -28,6 +28,10 @@ export function formatDateLabel(raw: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+export function formatPercent(value: number, digits = 0): string {
+  return `${value.toFixed(digits)}%`;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
