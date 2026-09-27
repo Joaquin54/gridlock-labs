@@ -62,7 +62,26 @@ export const CHART_TOOLTIP_STYLE = {
 export const CHART_PIE_SLICE_STROKE = {
   stroke: "var(--surface)",
   strokeWidth: 2,
+  rootTabIndex: -1,
 } as const;
+
+/** Recharts defaults put tabIndex on the chart SVG; charts here are pointer-driven. */
+export const CHART_RECHARTS_PROPS = {
+  accessibilityLayer: false,
+} as const;
+
+/** Pie root layer is focusable by default; keep sectors clickable without a focus ring. */
+export const CHART_PIE_NO_FOCUS_RING = {
+  rootTabIndex: -1,
+} as const;
+
+/** Prevent mousedown from focusing Recharts SVG hit targets (avoids the blue click outline). */
+export function suppressRechartsPointerFocus(event: Event): void {
+  const target = event.target;
+  if (target instanceof Element && target.closest(".recharts-wrapper")) {
+    event.preventDefault();
+  }
+}
 
 export const CHART_TOOLTIP_LABEL_STYLE = {
   color: "var(--text-primary)",

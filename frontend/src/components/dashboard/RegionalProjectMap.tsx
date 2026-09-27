@@ -84,12 +84,18 @@ const MARKER_LEGACY_REFERENCE_ZOOM = 4.5;
 const MARKER_MIN_RADIUS = 0.30;
 /** Subtle hover / selection emphasis — same min radius, slightly larger ring. */
 const MARKER_HOVER_SCALE = 1.5;
+/** When the legacy cap binds, limit on-screen size (radius × zoom) so dots do not dominate at low zoom. */
+const MARKER_MAX_SCREEN_RADIUS = 3.5;
 
 function markerRadiusForZoom(zoom: number, hovered: boolean, baseRadius: number): number {
   const calibration = MARKER_LEGACY_REFERENCE_ZOOM * MAP_DEFAULT_POSITION.zoom ** 0.35;
   const scaled = (baseRadius * calibration) / zoom ** 1.35;
-  const maxRadius = baseRadius * 1.75;
-  const r = Math.min(maxRadius, Math.max(MARKER_MIN_RADIUS, scaled));
+  const natural = Math.max(MARKER_MIN_RADIUS, scaled);
+  const legacyCap = baseRadius * 1.75;
+  const r =
+    natural < legacyCap
+      ? natural
+      : Math.min(legacyCap, MARKER_MAX_SCREEN_RADIUS / zoom);
   return hovered ? r * MARKER_HOVER_SCALE : r;
 }
 
@@ -153,7 +159,8 @@ export default function RegionalProjectMap({
   const startPosition = initialPosition ?? MAP_DEFAULT_POSITION;
   const [startLng, startLat] = startPosition.coordinates;
   const startZoom = startPosition.zoom;
-  const [hoverId, setHoverId] = useState<string | null>(null);
+  /** Last point hovered on the map; kept until another point is hovered. */
+  const [focusedPointId, setFocusedPointId] = useState<string | null>(null);
   const [hoverState, setHoverState] = useState<string | null>(null);
   const [hoverCounty, setHoverCounty] = useState<{
     name: string;
@@ -168,7 +175,7 @@ export default function RegionalProjectMap({
     setMapPosition({ coordinates: [startLng, startLat], zoom: startZoom });
     setSelectedCountyFips(null);
     setHoverCounty(null);
-    setHoverId(null);
+    setFocusedPointId(null);
   }, [startLng, startLat, startZoom]);
 
   const useGeocode = Boolean(geocodePoints?.length);
@@ -466,14 +473,13 @@ export default function RegionalProjectMap({
 
               {useGeocode
                 ? mappableGeocode.map((p) => {
-                    const active = p.id === hoverId;
+                    const active = p.id === focusedPointId;
                     const r = markerRadiusForZoom(mapPosition.zoom, active, markerBase);
                     return (
                       <Marker
                         key={p.id}
                         coordinates={[p.lon as number, p.lat as number]}
-                        onMouseEnter={() => setHoverId(p.id)}
-                        onMouseLeave={() => setHoverId((id) => (id === p.id ? null : id))}
+                        onMouseEnter={() => setFocusedPointId(p.id)}
                         onClick={() => {
                           if (p.googleMapsUrl) window.open(p.googleMapsUrl, "_blank", "noopener");
                         }}
@@ -490,14 +496,13 @@ export default function RegionalProjectMap({
                     );
                   })
                 : mappableProjects.map((p) => {
-                    const active = p.id === selectedProjectId || p.id === hoverId;
+                    const active = p.id === selectedProjectId || p.id === focusedPointId;
                     const r = markerRadiusForZoom(mapPosition.zoom, active, markerBase);
                     return (
                       <Marker
                         key={p.id}
                         coordinates={[p.center.lon as number, p.center.lat as number]}
-                        onMouseEnter={() => setHoverId(p.id)}
-                        onMouseLeave={() => setHoverId((id) => (id === p.id ? null : id))}
+                        onMouseEnter={() => setFocusedPointId(p.id)}
                         onClick={() => onSelectProject?.(p.id)}
                       >
                         <circle
@@ -515,62 +520,67 @@ export default function RegionalProjectMap({
           </ComposableMap>
         </div>
         <p className="m-0 mt-2 text-[0.6875rem] leading-snug text-text-muted">
-          Drag to pan, scroll to zoom. Click a county to zoom in; click again or Reset to return.{" "}
+        {" "}
+        {/* Drag to pan, scroll to zoom. Click a county to zoom in; click again or Reseto return */}
           {useGeocode ? (
             <>
-              {mappableGeocode.length} located points ({geocodePoints?.length ?? 0} in queue).
-              County shading by point density.
+              {/* {mappableGeocode.length} located points ({geocodePoints?.length ?? 0} in queue). */}
+              {/* County shading by point density. */}
             </>
           ) : (
             <>
-              {mappableProjects.length} of {projects.length} projects have map centers.
+              {/* {mappableProjects.length} of {projects.length} projects have map centers. */}
             </>
           )}
         </p>
         <div
           className={cn(
-            "mt-2 min-h-[3.75rem] box-border rounded-md border px-[0.875rem] py-[0.625rem] text-[0.8125rem]",
-            hoverId ? "border-border bg-surface shadow-md" : "border-transparent bg-transparent",
+            "mt-2 min-h-[5rem] box-border rounded-md border px-[0.875rem] py-2 text-[0.8125rem]",
+            focusedPointId
+              ? "border-border bg-surface shadow-md"
+              : "border-border/50 bg-surface-hover/40",
           )}
           aria-live="polite"
         >
-          {hoverId ? (
+          {focusedPointId ? (
             (() => {
               if (useGeocode) {
-                const p = mappableGeocode.find((x) => x.id === hoverId);
+                const p = mappableGeocode.find((x) => x.id === focusedPointId);
                 if (!p) return null;
                 return (
                   <>
-                    <div className="mb-1 flex flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
+                    <div className="mb-1 flex min-h-[1.125rem] flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
                       <UtilityBadge utilityKey={utilityKeyFromQueueCode(p.utility)} />
                       <TaskBadge task={p.task} />
                       <ConfidenceBadge confidence={p.confidence} />
                     </div>
-                    <p className="m-0 truncate font-medium leading-snug text-text-primary">
+                    <p className="m-0 min-h-[1.25rem] truncate font-medium leading-snug text-text-primary">
                       {p.pointName}
                     </p>
-                    <p className="m-0 mt-0.5 truncate text-[0.75rem] text-text-secondary">
+                    <p className="m-0 mt-0.5 min-h-[1.125rem] truncate text-[0.75rem] text-text-secondary">
                       {p.projectName}
                     </p>
                   </>
                 );
               }
-              const p = projects.find((x) => x.id === hoverId);
+              const p = projects.find((x) => x.id === focusedPointId);
               if (!p) return null;
               return (
                 <>
-                  <div className="mb-1 flex flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
+                  <div className="mb-1 flex min-h-[1.125rem] flex-wrap items-center gap-1.5 font-mono text-[0.6875rem] leading-none text-text-muted">
                     <UtilityBadge utilityKey={p.utilityKey} />
                     <span>{p.id}</span>
                   </div>
-                  <p className="m-0 truncate font-medium leading-snug text-text-primary">
+                  <p className="m-0 min-h-[1.25rem] truncate font-medium leading-snug text-text-primary">
                     {p.name}
                   </p>
                 </>
               );
             })()
           ) : (
-            <span className="sr-only">Hover a point on the map for details</span>
+            <p className="m-0 text-[0.75rem] leading-snug text-text-muted">
+              Hover a point on the map for details
+            </p>
           )}
         </div>
       </div>

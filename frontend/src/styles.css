@@ -1,23 +1,26 @@
 :root {
-  --bg: #eff5ff;
+  /* Light theme hues aligned to Sperry brand: green ~140°, blue ~218° (S/L unchanged from prior tokens) */
+  --bg: #f9fafb;
   --surface: #ffffff;
-  --surface-hover: #e0e9fd;
-  --border: #d8e2f8;
-  --border-strong: #b5c8eb;
-  --border-input: #cdd8ef;
-  --text-primary: #122034;
+  --surface-hover: #e0ebfd;
+  --border: #d8e4f8;
+  --border-strong: #b5c9eb;
+  --border-input: #cdd9ef;
+  --text-primary: #121e34;
   --text-secondary: #4a5b78;
-  --text-muted: #7383a0;
-  --accent: #6070c3;
-  --accent-hover: #334eb0;
-  --accent-light: #eff4ff;
-  --accent-text: #3b56ae;
+  --text-muted: #7384a0;
+  --accent: #6084c3;
+  --accent-hover: #3361b0;
+  --accent-light: #eff5ff;
+  --accent-text: #3b65ae;
   --green: #0f766e;
   --green-light: #e7faf3;
   --dominion: #c2410c;
   --dominion-light: #ffedd5;
   --georgia: #1d4ed8;
   --georgia-light: #dbeafe;
+  /* Charts / pies — fixed palette, separate from UI theme accent */
+  --chart-accent: #6070c3;
   /* Voltage class mix pie — categorical, not utility brand colors */
   --voltage-500: #7c3aed;
   --voltage-230: #d97706;
@@ -36,6 +39,7 @@
 }
 
 :root[data-theme="dark"] {
+  --chart-accent: #7aa8ff;
   --bg: #0f1218;
   --surface: #171b24;
   --surface-hover: #202532;
@@ -89,3 +93,4 @@ body {
     zoom: 0.9;
   }
 }
+

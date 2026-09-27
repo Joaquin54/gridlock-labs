@@ -66,7 +66,7 @@ function getMapProjectsAndPosition(project: GridlockProject): {
   const coordinates: [number, number] = hasCenter
     ? [project.center.lon as number, project.center.lat as number]
     : [-82.25, 32.85];
-  const zoom = hasCenter ? 14 : 6.25;
+  const zoom = hasCenter ? 30 : 6.25;
 
   return { mapProjects: all, initialPosition: { coordinates, zoom } };
 }

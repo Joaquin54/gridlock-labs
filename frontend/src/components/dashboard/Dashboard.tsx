@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -37,8 +38,10 @@ import {
   CHART_AXIS_TICK,
   CHART_LEGEND_BOTTOM,
   CHART_LEGEND_TOP,
-  CHART_LEGEND_WRAPPER_STYLE,
+  CHART_PIE_NO_FOCUS_RING,
   CHART_PIE_SLICE_STROKE,
+  CHART_RECHARTS_PROPS,
+  suppressRechartsPointerFocus,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_STYLE,
   CLS_DASHBOARD_INTRO,
@@ -68,11 +71,11 @@ const CLS_TH =
 const CLS_TD = "px-2 py-[0.42rem] text-[0.8125rem] text-text-secondary";
 
 type PieLegendEntry = {
-  payload?: { value?: number };
+  payload?: { value?: number; count?: number };
 };
 
 function pieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
-  const count = entry.payload?.value;
+  const count = entry.payload?.count ?? entry.payload?.value;
   if (count == null) return value;
   return (
     <span>
@@ -83,7 +86,25 @@ function pieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
   );
 }
 
+function voltagePieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
+  const count = entry.payload?.count ?? entry.payload?.value;
+  if (count == null) return value;
+  return (
+    <span className="inline-flex flex-col items-start gap-0 leading-none">
+      <span>{value}</span>
+      <span className="font-mono text-[0.75rem] text-text-muted opacity-80">
+        {formatCount(count)}
+      </span>
+    </span>
+  );
+}
+
 export default function Dashboard() {
+  useEffect(() => {
+    document.addEventListener("mousedown", suppressRechartsPointerFocus, true);
+    return () => document.removeEventListener("mousedown", suppressRechartsPointerFocus, true);
+  }, []);
+
   const navigate = useNavigate();
   const projects = getAllProjects();
   const summary = getDashboardSummary();
@@ -108,44 +129,26 @@ export default function Dashboard() {
         <h1 className="m-0 text-[1.05rem] font-semibold leading-tight text-text-primary">
           Project Overlap Dashboard
         </h1>
-        <p className={CLS_DASHBOARD_INTRO}>
+        {/* <p className={CLS_DASHBOARD_INTRO}>
           Full GPC + Dominion SC portfolio from project listings and the geocode review queue (
           {formatCount(geocodeSummary.totalPoints)} location points). Pilot overlap analysis (
           {formatCount(summary.totalProjects)} curated projects,{" "}
           {formatCount(summary.totalOverlaps)} pairs) is summarized in the ranked table below.
-        </p>
+        </p> */}
       </div>
 
-      <div className="mb-2 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
-        <StatCard label="Unique projects" value={formatCount(geocodeSummary.uniqueProjects)} />
-        <StatCard label="Location points" value={formatCount(geocodeSummary.totalPoints)} />
-        <StatCard
-          label="Points on map"
-          value={formatCount(geocodeSummary.withCoordinates)}
-          accent="green"
-        />
-        <StatCard label="Mapped coverage" value={formatPercent(geocodeSummary.locatedPct, 1)} />
-      </div>
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
-        <StatCard
-          label="Georgia Power projects"
-          value={formatCount(uniqueByUtility.gpc)}
-          accent="georgia"
-        />
-        <StatCard
-          label="Dominion (SC) projects"
-          value={formatCount(uniqueByUtility.desc)}
-          accent="dominion"
-        />
-        <StatCard
-          label="Border-area projects"
-          value={formatCount(borderProjectCount)}
-          accent="dominion"
-        />
         <StatCard
           label="Pilot cross-utility overlaps"
           value={formatCount(summary.totalOverlaps)}
           accent="green"
+        />
+        <StatCard label="Unique projects" value={formatCount(geocodeSummary.uniqueProjects)} />
+        <StatCard label="Location points" value={formatCount(geocodeSummary.totalPoints)} />
+        <StatCard
+          label="Border-area projects"
+          value={formatCount(borderProjectCount)}
+          accent="dominion"
         />
       </div>
 
@@ -161,14 +164,17 @@ export default function Dashboard() {
               <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
               <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart
+                    {...CHART_RECHARTS_PROPS}
+                    margin={{ top: 0, right: 0, bottom: 2, left: 0 }}
+                  >
                     <Pie
                       data={utilitySplit}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius="68%"
+                      outerRadius="100%"
                       {...CHART_PIE_SLICE_STROKE}
                     >
                       {utilitySplit.map((entry) => (
@@ -181,23 +187,36 @@ export default function Dashboard() {
                         `${value} points (${((Number(value) / geocodeSummary.totalPoints) * 100).toFixed(1)}%)`,
                       ]}
                     />
-                    <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
+                    <Legend
+                      {...CHART_LEGEND_BOTTOM}
+                      height={28}
+                      wrapperStyle={{ ...CHART_LEGEND_BOTTOM.wrapperStyle, paddingTop: 8 }}
+                      formatter={pieLegendLabel}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             </section>
-            <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
+            <section
+              className={cn(
+                CLS_DASHBOARD_PANEL_SHELL,
+                "flex min-h-[200px] flex-col [&_.recharts-legend-item]:!mr-1.5",
+              )}
+            >
               <div className={CLS_DASHBOARD_PANEL_HEADER}>Voltage class mix</div>
               <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
+                  <PieChart
+                    {...CHART_RECHARTS_PROPS}
+                    margin={{ top: 0, right: 0, bottom: 2, left: 0 }}
+                  >
                     <Pie
                       data={voltageData}
-                      dataKey="count"
+                      dataKey="sliceValue"
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius="68%"
+                      outerRadius="100%"
                       {...CHART_PIE_SLICE_STROKE}
                     >
                       {voltageData.map((entry) => (
@@ -206,12 +225,19 @@ export default function Dashboard() {
                     </Pie>
                     <Tooltip
                       contentStyle={CHART_TOOLTIP_STYLE}
-                      formatter={(value) => [`${value} projects`]}
+                      formatter={(_value, _name, item) => [
+                        `${item.payload.count} projects`,
+                      ]}
                     />
                     <Legend
                       {...CHART_LEGEND_BOTTOM}
-                      wrapperStyle={{ ...CHART_LEGEND_WRAPPER_STYLE, whiteSpace: "nowrap" }}
-                      formatter={pieLegendLabel}
+                      height={28}
+                      wrapperStyle={{
+                        ...CHART_LEGEND_BOTTOM.wrapperStyle,
+                        paddingTop: 4,
+                        transform: "translateY(4px)",
+                      }}
+                      formatter={voltagePieLegendLabel}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -223,6 +249,7 @@ export default function Dashboard() {
             <div className="min-h-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
+                  {...CHART_RECHARTS_PROPS}
                   data={workTypeData}
                   layout="vertical"
                   margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
@@ -248,7 +275,21 @@ export default function Dashboard() {
                     contentStyle={CHART_TOOLTIP_STYLE}
                     labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
-                  <Bar dataKey="count" fill="var(--accent)" maxBarSize={16} radius={[0, 4, 4, 0]} />
+                  <Legend {...CHART_LEGEND_TOP} />
+                  <Bar
+                    dataKey="gpc"
+                    name="Georgia Power"
+                    fill="var(--georgia)"
+                    maxBarSize={10}
+                    radius={[0, 3, 3, 0]}
+                  />
+                  <Bar
+                    dataKey="desc"
+                    name="Dominion (SC)"
+                    fill="var(--dominion)"
+                    maxBarSize={10}
+                    radius={[0, 3, 3, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -515,8 +556,9 @@ export default function Dashboard() {
           <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior</div>
           <div className="min-h-0 flex-1">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart {...CHART_RECHARTS_PROPS}>
                 <Pie
+                  {...CHART_PIE_NO_FOCUS_RING}
                   data={borderData}
                   dataKey="value"
                   nameKey="name"
@@ -549,7 +591,11 @@ export default function Dashboard() {
           </p>
           <div className="min-h-0 flex-1">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={milesBuckets} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+              <BarChart
+                {...CHART_RECHARTS_PROPS}
+                data={milesBuckets}
+                margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="bucket"
@@ -582,7 +628,11 @@ export default function Dashboard() {
         <div className={CLS_DASHBOARD_PANEL_HEADER}>Region by utility</div>
         <div className="min-h-0 flex-1">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={regionByUtility} margin={{ top: 4, right: 4, left: 0, bottom: 4 }}>
+            <BarChart
+              {...CHART_RECHARTS_PROPS}
+              data={regionByUtility}
+              margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
+            >
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
               <XAxis
                 dataKey="region"
@@ -634,8 +684,9 @@ export default function Dashboard() {
           <div className="flex flex-1 items-center justify-center gap-6">
             <div className="h-[160px] w-[160px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart {...CHART_RECHARTS_PROPS}>
                   <Pie
+                    {...CHART_PIE_NO_FOCUS_RING}
                     data={utilitySplit}
                     dataKey="value"
                     nameKey="name"
@@ -748,6 +799,7 @@ export default function Dashboard() {
             <div className="min-h-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
+                  {...CHART_RECHARTS_PROPS}
                   data={geocodeCharts.taskData}
                   layout="vertical"
                   margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
@@ -773,7 +825,7 @@ export default function Dashboard() {
                     contentStyle={CHART_TOOLTIP_STYLE}
                     labelStyle={CHART_TOOLTIP_LABEL_STYLE}
                   />
-                  <Bar dataKey="count" fill="var(--accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" fill="var(--chart-accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -783,6 +835,7 @@ export default function Dashboard() {
             <div className="min-h-0 flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
+                  {...CHART_RECHARTS_PROPS}
                   data={geocodeCharts.confidenceBars}
                   margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
                 >
@@ -823,6 +876,7 @@ export default function Dashboard() {
             <div className="min-h-[100px] flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
+                  {...CHART_RECHARTS_PROPS}
                   data={geocodeCharts.regionData}
                   layout="vertical"
                   margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
@@ -933,6 +987,25 @@ export default function Dashboard() {
           <code className="font-mono text-[0.65rem]">bun run sync-review-queue</code>
         </p>
       </section>
+
+      <div className="mt-8 grid grid-cols-2 gap-2 border-t border-border pt-6 lg:grid-cols-4 min-[901px]:gap-3">
+        <StatCard
+          label="Points on map"
+          value={formatCount(geocodeSummary.withCoordinates)}
+          accent="green"
+        />
+        <StatCard label="Mapped coverage" value={formatPercent(geocodeSummary.locatedPct, 1)} />
+        <StatCard
+          label="Georgia Power projects"
+          value={formatCount(uniqueByUtility.gpc)}
+          accent="georgia"
+        />
+        <StatCard
+          label="Dominion (SC) projects"
+          value={formatCount(uniqueByUtility.desc)}
+          accent="dominion"
+        />
+      </div>
     </div>
   );
 }
