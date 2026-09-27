@@ -155,6 +155,19 @@ export function searchReviewQueuePoints(filters: SearchFilters): ReviewQueuePoin
 
 export type VoltageClass = "500 kV" | "230 kV" | "115 kV" | "46 kV" | "Other";
 
+export const VOLTAGE_CLASS_DISPLAY_ORDER: readonly VoltageClass[] = [
+  "115 kV",
+  "230 kV",
+  "500 kV",
+  "46 kV",
+  "Other",
+];
+
+export function voltageClassLegendSortKey(name: string): number {
+  const idx = VOLTAGE_CLASS_DISPLAY_ORDER.indexOf(name as VoltageClass);
+  return idx === -1 ? VOLTAGE_CLASS_DISPLAY_ORDER.length : idx;
+}
+
 const VOLTAGE_RE = /(\d+)\s*[kK][vV]/g;
 
 function classifyVoltage(kv: number): VoltageClass {
@@ -185,7 +198,7 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
     "46 kV": "var(--voltage-46)",
     Other: "var(--voltage-other)",
   };
-  const order: VoltageClass[] = ["115 kV", "230 kV", "500 kV", "46 kV", "Other"];
+  const order: VoltageClass[] = [...VOLTAGE_CLASS_DISPLAY_ORDER];
   const rows = order
     .filter((cls) => (counts.get(cls) ?? 0) > 0)
     .map((cls) => ({ name: cls, count: counts.get(cls) ?? 0, fill: fills[cls] }));
