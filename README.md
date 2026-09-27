@@ -138,3 +138,12 @@ The frontend refuses to load data if `VITE_API_BASE_URL` is unset.
 | `DATABASE_URL`      | `backend/.env`   | Tiger Data Postgres connection string (`postgres://…?sslmode=require`). **Leave it unset to run on in-memory PGlite with fixture data.** |
 | `CORS_ORIGINS`      | `backend/.env`   | Comma-separated allowed origins. Defaults to `http://localhost:5173`; there is no wildcard. |
 | `VITE_API_BASE_URL` | `frontend/.env` or root `.env` for compose | Backend URL the browser calls.
+
+## Team
+
+| Name              | Contributions                                      |
+| ----------------- | -------------------------------------------------- |
+| Joaquin Frangi    | Backend development (lead)                         |
+| Isabella Correa   | Frontend development (lead)                        |
+| Omar Rifaie       | Backend development, Data Analysis & Verification  |
+| Pratyush Kulkarni | Data Analysis & Verification, Frontend development |
