@@ -5,6 +5,7 @@ import exportRoutes from './routes/export'
 import meta from './routes/meta'
 import overlaps from './routes/overlaps'
 import projects from './routes/projects'
+import savings from './routes/savings'
 
 const origin = (process.env.CORS_ORIGINS ?? 'http://localhost:5173')
   .split(',')
@@ -15,9 +16,11 @@ const app = new Hono()
 
 app.use('*', cors({ origin }))
 
+app.route('/', savings)
+
 // Until the schema is pushed every route but /health is unusable.
 app.use('*', async (c, next) => {
-  if (c.req.path === '/health') return next()
+  if (c.req.path === '/health' || c.req.path === '/savings') return next()
   const missing = await missingRelations()
   if (missing.length > 0) {
     return c.json({ ok: false, db: true, schema: false, missing }, 503)

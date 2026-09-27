@@ -13,7 +13,7 @@ import {
   workTypeForProject,
 } from "./geocodeRepository";
 import { utilityKeyFromApi } from "./mappers";
-import type { ApiUtility } from "../api/types";
+import type { ApiSavingsReport, ApiSavingsRow, ApiUtility } from "../api/types";
 
 export function utilityKeyFromName(utility: string): UtilityKey {
   if (utility.toLowerCase().includes("dominion")) return "dominion";
@@ -160,6 +160,26 @@ function classifyOpportunity(
   return "Staggered build";
 }
 
+export type SourcedCostImpact = {
+  overlapId: string;
+  windowGapDays: number;
+  costDesc: number;
+  costGpcLow: number;
+  costGpcMid: number;
+  costGpcHigh: number;
+  costMethod: string;
+  scheduleT: number;
+  distanceD: number;
+  sPctLow: number;
+  sPctMid: number;
+  sPctHigh: number;
+  components: string;
+  savingsLow: number;
+  savingsMid: number;
+  savingsHigh: number;
+  inRealisticHeadline: boolean;
+};
+
 export type CostImpact = {
   sharedRowMiles: number;
   rowCostPerMile: number;
@@ -168,7 +188,105 @@ export type CostImpact = {
   mobilisationSavings: number;
   totalEstimatedSavings: number;
   explanation: string;
+  sourced?: SourcedCostImpact;
 };
+
+export type SavingsTotals = {
+  headline: { low: number; mid: number; high: number };
+  upperBound: { low: number; mid: number; high: number };
+};
+
+/** API/DB ids use `DESC:6810 O`; savings deliverable CSVs use `DESC_6810 O`. */
+export function normalizeSavingsProjectId(id: string): string {
+  return id.replace(/^(DESC|GPC):/, "$1_");
+}
+
+export function savingsPairKey(descId: string, gpcId: string): string {
+  return `${normalizeSavingsProjectId(descId)}|${normalizeSavingsProjectId(gpcId)}`;
+}
+
+export function savingsLookupFromReport(report: ApiSavingsReport): Map<string, SourcedCostImpact> {
+  const map = new Map<string, SourcedCostImpact>();
+  for (const row of report.rows) {
+    map.set(savingsPairKey(row.desc_id, row.gpc_id), sourcedFromApiRow(row));
+  }
+  return map;
+}
+
+export function savingsTotalsFromReport(report: ApiSavingsReport): SavingsTotals {
+  return {
+    headline: report.totals.headline,
+    upperBound: report.totals.upper_bound,
+  };
+}
+
+function sourcedFromApiRow(row: ApiSavingsRow): SourcedCostImpact {
+  return {
+    overlapId: row.overlap_id,
+    windowGapDays: row.window_gap_days,
+    costDesc: row.cost_desc,
+    costGpcLow: row.cost_gpc_low,
+    costGpcMid: row.cost_gpc_mid,
+    costGpcHigh: row.cost_gpc_high,
+    costMethod: row.cost_method,
+    scheduleT: row.t,
+    distanceD: row.d,
+    sPctLow: row.s_pct_low,
+    sPctMid: row.s_pct_mid,
+    sPctHigh: row.s_pct_high,
+    components: row.components,
+    savingsLow: row.savings_low,
+    savingsMid: row.savings_mid,
+    savingsHigh: row.savings_high,
+    inRealisticHeadline: row.in_realistic_headline,
+  };
+}
+
+function buildSourcedExplanation(
+  distanceMi: number | null,
+  sourced: SourcedCostImpact,
+): string {
+  const d = distanceMi ?? 0;
+  const mid = sourced.savingsMid;
+  if (mid <= 0) {
+    if (sourced.scheduleT === 0) {
+      return (
+        `These projects are ${d.toFixed(1)} mi apart, but their construction windows do not overlap ` +
+        `(window gap ${sourced.windowGapDays.toLocaleString()} days → schedule factor T = 0). ` +
+        `Under the coordination-savings model, shareable mobilization and construction-management overhead is zero until timelines align.`
+      );
+    }
+    return `At ${d.toFixed(1)} mi apart, the sourced model estimates negligible coordination savings for this pair.`;
+  }
+
+  const binding = Math.min(sourced.costDesc, sourced.costGpcMid);
+  const scheduleLabel =
+    sourced.scheduleT === 1
+      ? "fully overlapping build windows (T = 1)"
+      : `partially aligned schedules (T = ${sourced.scheduleT})`;
+
+  return (
+    `At ${d.toFixed(1)} mi apart with ${scheduleLabel} and distance factor D = ${sourced.distanceD.toFixed(3)}, ` +
+    `about ${sourced.sPctMid}% of the smaller project cost ($${(binding / 1_000_000).toFixed(2)}M) can be shared ` +
+    `(${sourced.components.replace(/_/g, " ")}). ` +
+    `Mid-case coordination savings: $${(mid / 1_000_000).toFixed(2)}M ` +
+    `(low $${(sourced.savingsLow / 1_000_000).toFixed(2)}M / high $${(sourced.savingsHigh / 1_000_000).toFixed(2)}M).` +
+    (sourced.inRealisticHeadline ? " Included in the realistic headline total." : "")
+  );
+}
+
+function mergeSourcedCostImpact(
+  heuristic: CostImpact,
+  sourced: SourcedCostImpact,
+  distanceMi: number | null,
+): CostImpact {
+  return {
+    ...heuristic,
+    totalEstimatedSavings: sourced.savingsMid,
+    explanation: buildSourcedExplanation(distanceMi, sourced),
+    sourced,
+  };
+}
 
 function estimateCostImpact(distanceMi: number | null, timeGapDays: number | null): CostImpact {
   const d = distanceMi ?? 10;
@@ -223,16 +341,46 @@ export type RankedOpportunity = {
 
 export function getRankedCoordinationOpportunities(
   overlaps: ProjectOverlap[],
+  savingsByPair?: Map<string, SourcedCostImpact>,
 ): RankedOpportunity[] {
   return overlaps
-    .map((o) => ({
-      overlap: o,
-      score: coordinationScore(o.distanceMi, o.timeGapDays),
-      type: classifyOpportunity(o.distanceMi, o.timeGapDays),
-      costImpact: estimateCostImpact(o.distanceMi, o.timeGapDays),
-    }))
+    .map((o) => {
+      const heuristic = estimateCostImpact(o.distanceMi, o.timeGapDays);
+      const sourced = savingsByPair?.get(savingsPairKey(o.projectIdA, o.projectIdB));
+      const costImpact = sourced
+        ? mergeSourcedCostImpact(heuristic, sourced, o.distanceMi)
+        : heuristic;
+      return {
+        overlap: o,
+        score: coordinationScore(o.distanceMi, o.timeGapDays),
+        type: classifyOpportunity(o.distanceMi, o.timeGapDays),
+        costImpact,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .map((entry, i) => ({ ...entry, rank: i + 1 }));
+}
+
+/** Highest mid-case savings among headline pairs (sourced deliverable). */
+export function getSavingsSpotlightOpportunity(
+  opportunities: RankedOpportunity[],
+): RankedOpportunity | undefined {
+  let best: RankedOpportunity | undefined;
+  for (const opp of opportunities) {
+    const sourced = opp.costImpact.sourced;
+    if (!sourced?.inRealisticHeadline) continue;
+    if (!best || sourced.savingsMid > (best.costImpact.sourced?.savingsMid ?? 0)) {
+      best = opp;
+    }
+  }
+  if (best) return best;
+  for (const opp of opportunities) {
+    const mid = opp.costImpact.sourced?.savingsMid ?? 0;
+    if (mid <= 0) continue;
+    if (!best || mid > (best.costImpact.sourced?.savingsMid ?? 0)) best = opp;
+  }
+  if (best) return best;
+  return opportunities[0];
 }
 
 export function utilityShortLabel(key: UtilityKey): string {

@@ -1,6 +1,12 @@
 import type { ApiOverlap, ApiProjectFeature, ApiProjectPoint, ApiUtility } from "../api/types";
 import type { GeocodeConfidence, GeocodeTask, ReviewQueuePoint } from "../types/geocode";
-import type { GridlockProject, ProjectEndpoint, ProjectOverlap, UtilityKey } from "../types/project";
+import type {
+  GridlockProject,
+  ProjectEndpoint,
+  ProjectLocationPoint,
+  ProjectOverlap,
+  UtilityKey,
+} from "../types/project";
 
 export function utilityKeyFromApi(utility: ApiUtility): UtilityKey {
   return utility === "DESC" ? "dominion" : "georgia-power";
@@ -112,27 +118,55 @@ export function projectFromFeature(
   const endpointA = endpointFromPoint(points[0]);
   const endpointB = endpointFromPoint(points[1] ?? points[0]);
   const partnerIds = overlapPartnerIds(props.id, overlaps);
+  const locationPoints: ProjectLocationPoint[] = points.map((point) => ({
+    seq: point.seq,
+    name: point.name,
+    lat: point.lat,
+    lon: point.lon,
+    method: point.method,
+    confidence: point.confidence,
+    matchName: point.match_name,
+    matchScore: point.match_score,
+    sourceUrl: point.source_url,
+  }));
 
   return {
     id: props.id,
+    projectKey: props.project_key,
     utility: props.utility === "DESC" ? "Dominion Energy SC" : "Georgia Power",
     utilityKey: utilityKeyFromApi(props.utility),
     state: stateFromUtility(props.utility),
     name: props.name,
+    owner: props.owner,
+    ownerInScope: props.owner_in_scope,
     endpointA,
     endpointB,
     center: centerFromProperties(props.center),
+    startDate: props.start_date,
+    startDateSource: props.start_date_source,
     inServiceDate: props.in_service_date,
+    inServiceRaw: props.in_service_raw,
     overlapCount: partnerIds.length,
     overlapProjectIds: partnerIds,
     description: props.description,
+    projectType: props.project_type,
     voltageKv: props.voltage_kv,
     lineMiles: props.line_miles,
+    milesSource: props.miles_source,
+    costUsd: props.cost_usd,
+    costLow: props.cost_low,
+    costHigh: props.cost_high,
+    sourceDoc: props.source_doc,
+    sourcePage: props.source_page,
     zone: props.zone,
     isBorder: props.is_border,
+    status: props.status,
     workTypeRaw: props.work_type,
     located: props.located,
     locationConfidence: props.location_confidence,
+    pointsLocated: props.points_located,
+    pointsTotal: props.points_total,
+    points: locationPoints,
   };
 }
 
@@ -148,6 +182,8 @@ export function overlapFromApi(o: ApiOverlap, index: number): ProjectOverlap {
     id: `${o.desc_id}::${o.gpc_id}::${index}`,
     distanceMi: o.distance_mi,
     timeGapDays: o.window_gap_days ?? o.in_service_gap_days,
+    inServiceGapDays: o.in_service_gap_days,
+    windowGapDays: o.window_gap_days,
     utilityA: "Dominion Energy SC",
     projectIdA: o.desc_id,
     projectNameA: o.desc_name,

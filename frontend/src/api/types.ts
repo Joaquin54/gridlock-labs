@@ -92,3 +92,40 @@ export type ApiStats = {
   confidence: Record<ApiWireConfidence, number>;
   overlaps: Record<ApiWireConfidence, number> & { total: number };
 };
+
+export type ApiSavingsTotals = {
+  low: number;
+  mid: number;
+  high: number;
+};
+
+export type ApiSavingsRow = {
+  overlap_id: string;
+  desc_id: string;
+  gpc_id: string;
+  distance_mi: number;
+  window_gap_days: number;
+  cost_desc: number;
+  cost_gpc_low: number;
+  cost_gpc_mid: number;
+  cost_gpc_high: number;
+  cost_method: string;
+  t: number;
+  d: number;
+  components: string;
+  s_pct_low: number;
+  s_pct_mid: number;
+  s_pct_high: number;
+  savings_low: number;
+  savings_mid: number;
+  savings_high: number;
+  in_realistic_headline: boolean;
+};
+
+export type ApiSavingsReport = {
+  rows: ApiSavingsRow[];
+  totals: {
+    headline: ApiSavingsTotals;
+    upper_bound: ApiSavingsTotals;
+  };
+};
