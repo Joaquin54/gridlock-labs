@@ -1,5 +1,5 @@
 .env
-
+context-files
 node_modules
 /Sperry-Tech-Challenge
 /isa_folder
@@ -7,6 +7,6 @@ node_modules
 /frontend/node_modules
 /frontend/dist
 /frontend/.DS_Store
-/backend/*.lock
+/backend/bun.lock
 /backend/node_modules
 .DS_Store
