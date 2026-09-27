@@ -1,22 +1,39 @@
-# Gridlock — Utility Project Overlaps
+# Gridlock Labs — Utility Project Overlaps
 
-ShellHacks 2026 project. Gridlock maps transmission projects from multiple utilities (Dominion Energy South Carolina, Georgia Power) and flags projects that overlap in space and time, so crews and planners can spot coordination opportunities.
+ShellHacks 2026 project. Gridlock maps transmission projects from two utilities (Dominion Energy South Carolina and Georgia Power) and flags pairs of projects that overlap in space and time, so crews and planners can spot coordination opportunities. For each overlapping pair it also estimates how much money coordinating the two projects could save, as a low / mid / high band.
+
+The dashboard reads live data from a PostgreSQL database hosted on Tiger Data. Projects, overlaps, stats and savings are fetched from the backend API every time the app loads.
 
 ## Repository layout
 
 ```
 .
-├── backend/            # Bun + Hono API (early scaffold)
-│   └── src/index.ts    # App entry point
-├── frontend/           # React + Vite dashboard
-│   ├── scripts/        # Data tooling (xlsx → seed.json)
+├── backend/                  # Bun + Hono API
+│   ├── src/
+│   │   ├── index.ts          # App entry point (CORS, schema gate, routes)
+│   │   ├── routes/           # projects, overlaps, meta (health/stats), export, savings
+│   │   ├── queries/          # SQL for projects, points, overlaps, stats
+│   │   ├── lib/              # geometry, haversine, confidence, CSV, savings model
+│   │   └── db/               # Drizzle schema, client (Tiger or PGlite), fixture data
+│   ├── scripts/              # load-tiger, export-deliverables, build-savings
+│   ├── db/applied/           # DDL applied to Tiger by hand, in order
+│   └── test/                 # bun test suites
+├── frontend/                 # React + Vite dashboard
+│   ├── scripts/              # Data tooling (xlsx → seed.json, review queue)
 │   └── src/
-│       ├── components/ # dashboard, search, project detail, layout, shared
-│       ├── data/       # repository.ts + seed.json (current data source)
-│       ├── hooks/      # useTheme
-│       ├── types/      # GridlockProject, ProjectOverlap, SearchFilters
+│       ├── api/              # API client (projects, overlaps, stats, savings, documents)
+│       ├── components/       # dashboard, search, project detail, upload, layout, shared
+│       ├── data/             # GridlockDataContext (loads from the API), mappers, repository
+│       ├── hooks/            # useTheme
+│       ├── types/            # GridlockProject, ProjectOverlap, SearchFilters
 │       └── utils/
-└── .env-example        # Root env template (placeholder)
+├── docs/
+│   ├── deliverable/          # Challenge deliverable CSVs + savings estimate
+│   ├── load_gap_report.md
+│   └── points_join_report.md
+├── docker-compose.yml        # Tiger stack
+├── docker-compose.offline.yml# Offline override (PGlite, no database)
+└── .env-example              # Frontend VITE_API_BASE_URL template
 ```
 
 ## Tech stack
@@ -24,25 +41,27 @@ ShellHacks 2026 project. Gridlock maps transmission projects from multiple utili
 | Area     | Tools                                                                  |
 | -------- | ---------------------------------------------------------------------- |
 | Runtime  | [Bun](https://bun.sh) (frontend and backend; Node is not required)     |
-| Frontend | React 18, TypeScript, Vite, Tailwind CSS v4, React Router 7, Recharts, react-simple-maps |
-| Backend  | Hono, Drizzle ORM + drizzle-kit, `postgres` driver, Scalar API reference |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS v4, React Router 7, Recharts, react-simple-maps, d3-geo |
+| Backend  | Hono, Zod, Drizzle ORM + drizzle-kit, `postgres` driver, PGlite (offline mode) |
 | Database | PostgreSQL hosted on [Tiger Data](https://www.tigerdata.com)           |
 | Tooling  | Biome (lint + format), Docker / docker-compose                         |
 
 ## Current status
 
-- **Frontend:** working dashboard, search page, and project detail page. Data is loaded from the backend API (`VITE_API_BASE_URL`) via `frontend/src/data/GridlockDataContext.tsx`.
-- **Backend:** Hono API over the Drizzle schema — projects, live overlaps, stats, manual location edits, and the CSV / GeoJSON deliverables. See [Backend API](#backend-api). Scalar is installed but not wired up.
-- **Database:** the Drizzle schema (`backend/src/db/schema.ts`) is final and the Tiger Data tables are loaded. Without `DATABASE_URL` the backend runs on an in-memory PGlite copy with fixture data instead.
-- **Containers:** `docker compose up --build` runs the whole app locally — see [Run locally with Docker](#run-locally-with-docker).
+- **Database:** the Tiger Data tables (`projects`, `project_points`, `points`) and views (`project_geo`, `point_usage`, `overlap_table`, `project_table`) are loaded and live. The schema lives in `backend/src/db/schema.ts`, and every change applied to Tiger is recorded in `backend/db/applied/`. Without `DATABASE_URL`, the backend runs on an in-memory PGlite copy with fixture data.
+- **Backend:** Hono API serving projects, live overlaps, stats, manual location edits, the savings estimate, and the CSV / GeoJSON deliverables. See [Backend API](#backend-api).
+- **Frontend:** dashboard, search page and project detail page, all fed live from the API through `frontend/src/data/GridlockDataContext.tsx`. Data loads when the app opens; if the API is unreachable, an error screen offers a retry. There is no automatic polling, so refresh the page to pick up changes made elsewhere.
+- **Savings estimate:** the dashboard headline and project pages show the coordination-savings band from `GET /savings`. See `docs/deliverable/savings/README.md` for the method.
+- **Containers:** `docker compose up --build` runs the whole app locally. See [Run locally with Docker](#run-locally-with-docker).
 
 ### Frontend routes
 
 | Path                    | Page                                         |
 | ----------------------- | -------------------------------------------- |
-| `/`                     | Dashboard — stats, regional map, charts      |
+| `/`                     | Dashboard: stats, savings headline, SC & GA map, charts |
 | `/search`               | Search/filter by name, utility, state, overlaps |
-| `/projects/:projectId`  | Project detail and linked overlapping projects |
+| `/projects/:projectId`  | Project detail, overlapping projects and their savings |
+| `/upload`               | PDF upload for utility listing documents (not yet backed by the API — see [Known issues](#known-issues)) |
 
 ## Run locally with Docker
 
@@ -66,6 +85,8 @@ Never run both at once: they publish the same backend port.
 The browser runs on your host, so the frontend reaches the API at
 `http://localhost:3000` (the published port) — never at the compose service name.
 `CORS_ORIGINS` is pinned to `http://localhost:5173` in `docker-compose.yml`.
+The backend container mounts `docs/` read-only (`DOCS_ROOT=/workspace`) so `/savings`
+can read the deliverable inputs.
 
 ### `backend/.env`
 
@@ -81,17 +102,17 @@ with or without that file.
 
 > **Never run `drizzle-kit push` (or any migration) against Tiger.** The containers
 > only read the database. Schema changes go through `backend/db/applied/` by hand —
-> see `docs/load_gap_report.md` §6.
+> see `backend/db/applied/README.md` and `docs/load_gap_report.md` §6.
 
 There is **no local Postgres container**: Tiger is the database and offline mode is PGlite.
 
 ### Known issues
 
-- `frontend/src/api/documents.ts` POSTs to `/api/documents/upload`, which the backend
-  does not implement. Unused by the current pages.
-- Set `VITE_API_BASE_URL` when running the frontend outside Docker (`cp frontend/.env.example frontend/.env`).
-- `backend/bun.lock` and `frontend/bun.lock` are gitignored, so a fresh clone has no
-  lockfile for the `--frozen-lockfile` install in either Dockerfile.
+- The `/upload` page POSTs to `/api/documents/upload` (`frontend/src/api/documents.ts`),
+  which the backend does not implement yet, so uploads fail.
+- `frontend/bun.lock` is gitignored, so a fresh clone has no frontend lockfile for the
+  `--frozen-lockfile` install in `frontend/Dockerfile`. (`backend/bun.lock` is committed.)
+- Scalar (`@scalar/hono-api-reference`) is installed but not wired up.
 
 ### Running without Docker (fallback)
 
@@ -103,80 +124,17 @@ bun run dev          # http://localhost:3000
 
 # Frontend
 cd frontend
-cp .env.example .env
+echo "VITE_API_BASE_URL=http://localhost:3000" > .env
 bun install
 bun run dev          # http://localhost:5173
 ```
 
+The frontend refuses to load data if `VITE_API_BASE_URL` is unset.
+
 ## Environment variables
 
-See `backend/.env-example`.
-
-| Variable       | Description                                      |
-| -------------- | ------------------------------------------------ |
-| `DATABASE_URL` | Tiger Data Postgres connection string (`postgres://…?sslmode=require`). **Leave it unset to run on in-memory PGlite with fixture data.** |
-| `CORS_ORIGINS` | Comma-separated allowed origins. Defaults to `http://localhost:5173`; there is no wildcard. |
-
-Never commit `.env` — it is gitignored.
-
-## Backend API
-
-Snake_case on the wire, matching the column names and the deliverable CSVs. No response envelope and no pagination (252 projects at most).
-
-| Method | Route | Notes |
-| ------ | ----- | ----- |
-| `GET` | `/health` | `{ ok, db }`; 503 while the schema is missing |
-| `GET` | `/projects` | GeoJSON FeatureCollection, unlocated projects included. `utility`, `confidence=high,medium,low`, `located`, `inScope`, `bbox=w,s,e,n` |
-| `GET` | `/projects/:id` | Detail Feature: properties + `points[]` + `overlaps[]`. Ids hold spaces and commas — send them through `encodeURIComponent` |
-| `GET` | `/overlaps` | Live DESC × GPC pairs. `maxMiles=25`, `maxGapDays`, `minConfidence`, `inScope=true`, `sort=distance\|gap` |
-| `PATCH` | `/projects/:id/points/:seq` | Save a hand-checked location: `{ lat, lon, source_url }` |
-| `GET` | `/stats` | Header counts |
-| `GET` | `/export/projects_desc.csv`, `/export/projects_gpc.csv` | Deliverable project tables |
-| `GET` | `/export/overlaps.csv` | Deliverable overlap table; same params as `/overlaps` |
-| `GET` | `/export/projects_desc.geojson`, `/export/projects_gpc.geojson` | One FeatureCollection per utility |
-| `GET` | `/export/location_overrides.csv` | Every `manual` point, to back up edits before a loader re-run |
-
-Bad input returns 400 with `{ error, issues }`.
-
-### Creating the tables (one time)
-
-The Tiger database has no tables yet. One person runs this once, with `DATABASE_URL` set:
-
-```bash
-cd backend
-bunx drizzle-kit push
-```
-
-That applies `src/db/schema.ts` — the two tables plus the `project_geo` view — and writes no migration files. Until it has been run, `/health` returns 503 with `{ schema: false, missing: [...] }` and every other route returns the same, while the server still starts.
-
-### Backend scripts
-
-| Script              | Command                     |
-| ------------------- | --------------------------- |
-| `bun run dev`       | `bun run --hot src/index.ts` |
-| `bun run typecheck` | `tsc --noEmit`              |
-| `bun run test`      | `bun test`                  |
-
-## Frontend scripts
-
-Run from `frontend/`:
-
-| Command             | Does                                               |
-| ------------------- | -------------------------------------------------- |
-| `bun run dev`       | Start Vite dev server on `0.0.0.0:5173`            |
-| `bun run build`     | Type-check, then production build to `dist/`       |
-| `bun run preview`   | Serve the build on port `4173`                     |
-| `bun run typecheck` | `tsc --noEmit`                                     |
-| `bun run lint`      | `biome check .`                                    |
-| `bun run format`    | `biome check --write .`                            |
-| `bun run sync-seed` | Regenerate `src/data/seed.json` from the challenge spreadsheet |
-
-### Regenerating seed data
-
-`sync-seed` reads `Sperry-Tech-Challenge/Projects_Overlaps.xlsx` at the repo root (gitignored; get it from the challenge materials) and writes the `projects` and `overlaps` sheets to `frontend/src/data/seed.json`.
-
-## Code style
-
-- 2-space indentation, double quotes, 100-char line width (Biome, `frontend/biome.json`).
-- TypeScript strict mode; explicit types.
-- Functional React components.
+| Variable            | Where            | Description |
+| ------------------- | ---------------- | ----------- |
+| `DATABASE_URL`      | `backend/.env`   | Tiger Data Postgres connection string (`postgres://…?sslmode=require`). **Leave it unset to run on in-memory PGlite with fixture data.** |
+| `CORS_ORIGINS`      | `backend/.env`   | Comma-separated allowed origins. Defaults to `http://localhost:5173`; there is no wildcard. |
+| `VITE_API_BASE_URL` | `frontend/.env` or root `.env` for compose | Backend URL the browser calls.
