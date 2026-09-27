@@ -94,3 +94,105 @@ body {
   }
 }
 
+/* Filter select portal menu (KBR-Internship FilterSelect) */
+.filter-select-portal {
+  position: fixed;
+  z-index: 250;
+  pointer-events: auto;
+}
+
+.filter-select-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.28rem;
+  scrollbar-width: thin;
+}
+
+.filter-select-panel--grid {
+  padding: 0.35rem 0.4rem;
+}
+
+.filter-select-option--grid-span {
+  grid-column: 1 / -1;
+}
+
+.filter-select-panel--grid .filter-select-option:not(.filter-select-option--grid-span) {
+  justify-content: center;
+  text-align: center;
+}
+
+.filter-select-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.filter-select-panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.filter-select-option {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.filter-select-option:hover,
+.filter-select-option:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.filter-select-option--active {
+  background: var(--surface-hover);
+}
+
+.filter-select-option:hover.filter-select-option--active,
+.filter-select-option:focus-visible.filter-select-option--active {
+  background: var(--surface-hover);
+}
+
+.filter-select-option[aria-selected="true"] {
+  background: var(--accent-light);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.filter-select-option[aria-selected="true"].filter-select-option--active {
+  background: color-mix(in srgb, var(--accent-light) 88%, var(--accent) 12%);
+  color: var(--accent-text);
+}
+
+.filter-select-option--disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.filter-select-option--disabled:hover,
+.filter-select-option--disabled:focus-visible {
+  background: transparent;
+}
+
+.filter-select-option--disabled[aria-selected="true"] {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+

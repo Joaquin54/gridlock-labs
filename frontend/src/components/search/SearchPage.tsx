@@ -14,6 +14,7 @@ import { formatDateLabel, formatMiles } from "../../utils/format";
 import ConfidenceBadge from "../shared/ConfidenceBadge";
 import TaskBadge from "../shared/TaskBadge";
 import UtilityBadge from "../shared/UtilityBadge";
+import FilterSelect from "./FilterSelect";
 
 const CLS_CONTROL =
   "box-border w-full min-h-[2.5rem] rounded-sm border-2 border-border-input bg-bg px-[0.7rem] py-[0.48rem] font-sans text-[14px] leading-[1.35] text-text-primary outline-none transition-[border-color] duration-150 hover:border-border-strong focus:border-accent placeholder:text-text-muted";
@@ -107,6 +108,17 @@ export default function SearchPage() {
     [countyIndexReady, applied.state],
   );
 
+  const countyPlaceholder = !applied.state
+    ? "Select a state first"
+    : countyIndexReady
+      ? "All counties"
+      : "Loading counties…";
+
+  const countySelectOptions = useMemo(
+    () => countyOptions.map((county) => ({ value: county.fips, label: county.name })),
+    [countyOptions],
+  );
+
   const results = useMemo(() => searchCatalog(applied), [applied]);
 
   const applyFilters = (patch: Partial<SearchFilters>) => {
@@ -159,24 +171,24 @@ export default function SearchPage() {
             label="Utility"
             className="w-[260px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
           >
-            <select
+            <FilterSelect
               value={applied.utility}
-              onChange={(e) =>
-                applyFilters({ utility: e.target.value as "" | UtilityKey })
-              }
-              className={CLS_CONTROL}
-            >
-              <option value="">All utilities</option>
-              <option value="dominion">Dominion Energy (SC)</option>
-              <option value="georgia-power">Georgia Power</option>
-            </select>
+              onChange={(v) => applyFilters({ utility: v as "" | UtilityKey })}
+              placeholder="All utilities"
+              ariaLabel="Utility"
+              active={Boolean(applied.utility)}
+              options={[
+                { value: "dominion", label: "Dominion Energy (SC)" },
+                { value: "georgia-power", label: "Georgia Power" },
+              ]}
+            />
           </FilterField>
 
           <FilterField label="State" className="w-[175px] max-[1100px]:min-w-[120px]">
-            <select
+            <FilterSelect
               value={applied.state}
-              onChange={(e) => {
-                const state = e.target.value as "" | "GA" | "SC";
+              onChange={(v) => {
+                const state = v as "" | "GA" | "SC";
                 const patch: Partial<SearchFilters> = { state };
                 if (
                   applied.county &&
@@ -186,55 +198,48 @@ export default function SearchPage() {
                 }
                 applyFilters(patch);
               }}
-              className={CLS_CONTROL}
-            >
-              <option value="">All states</option>
-              <option value="SC">South Carolina</option>
-              <option value="GA">Georgia</option>
-            </select>
+              placeholder="All states"
+              ariaLabel="State"
+              active={Boolean(applied.state)}
+              options={[
+                { value: "SC", label: "South Carolina" },
+                { value: "GA", label: "Georgia" },
+              ]}
+            />
           </FilterField>
 
           <FilterField
             label="County"
             className="w-[220px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
           >
-            <select
+            <FilterSelect
               value={applied.state ? applied.county : ""}
               disabled={!applied.state || !countyIndexReady}
-              onChange={(e) => applyFilters({ county: e.target.value })}
-              className={cn(CLS_CONTROL, (!applied.state || !countyIndexReady) && "opacity-60")}
-            >
-              <option value="">
-                {!applied.state
-                  ? "Select a state first"
-                  : countyIndexReady
-                    ? "All counties"
-                    : "Loading counties…"}
-              </option>
-              {countyOptions.map((county) => (
-                <option key={county.fips} value={county.fips}>
-                  {county.name}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => applyFilters({ county: v })}
+              placeholder={countyPlaceholder}
+              ariaLabel="County"
+              active={Boolean(applied.state && applied.county)}
+              truncateSelectedLabel
+              menuMinWidthPx={220}
+              options={countySelectOptions}
+            />
           </FilterField>
 
           <FilterField
             label="Work type"
             className="w-[220px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
           >
-            <select
+            <FilterSelect
               value={applied.workType}
-              onChange={(e) => applyFilters({ workType: e.target.value as "" | WorkType })}
-              className={CLS_CONTROL}
-            >
-              <option value="">All work types</option>
-              {WORK_TYPE_FILTER_OPTIONS.map((workType) => (
-                <option key={workType} value={workType}>
-                  {workType}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => applyFilters({ workType: v as "" | WorkType })}
+              placeholder="All work types"
+              ariaLabel="Work type"
+              active={Boolean(applied.workType)}
+              options={WORK_TYPE_FILTER_OPTIONS.map((workType) => ({
+                value: workType,
+                label: workType,
+              }))}
+            />
           </FilterField>
 
           <FilterField label="Overlaps" className="shrink-0">
