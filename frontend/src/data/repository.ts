@@ -1,3 +1,4 @@
+import type { ReviewQueuePoint } from "../types/geocode";
 import type {
   CatalogSearchResult,
   GridlockProject,
@@ -5,61 +6,85 @@ import type {
   SearchFilters,
   UtilityKey,
 } from "../types/project";
-import { getPilotProjectCountyFips } from "./countyIndex";
-import { classifyWorkType, searchReviewQueuePoints } from "./geocodeRepository";
-import seed from "./seed.json";
+import { getPilotProjectCountyFips, getQueuePointCountyFips } from "./countyIndex";
+import {
+  queuePointSearchHaystack,
+  queuePointsByProjectId,
+  workTypeForProject,
+} from "./geocodeRepository";
+import { utilityKeyFromApi } from "./mappers";
+import type { ApiUtility } from "../api/types";
 
-type RawProject = Omit<GridlockProject, "utilityKey">;
-
-function utilityKeyFromName(utility: string): UtilityKey {
+export function utilityKeyFromName(utility: string): UtilityKey {
   if (utility.toLowerCase().includes("dominion")) return "dominion";
   return "georgia-power";
 }
 
-function normalizeProject(raw: RawProject): GridlockProject {
-  return {
-    ...raw,
-    utilityKey: utilityKeyFromName(raw.utility),
-  };
-}
-
-const projects: GridlockProject[] = seed.projects.map((p) => normalizeProject(p as RawProject));
-const overlaps: ProjectOverlap[] = seed.overlaps as ProjectOverlap[];
-
-const projectById = new Map(projects.map((p) => [p.id, p]));
-
-export function getAllProjects(): GridlockProject[] {
+export function getAllProjects(projects: GridlockProject[]): GridlockProject[] {
   return projects;
 }
 
-export function getProjectById(id: string): GridlockProject | undefined {
-  return projectById.get(id);
+export function getProjectById(
+  projects: GridlockProject[],
+  id: string,
+): GridlockProject | undefined {
+  return projects.find((p) => p.id === id);
 }
 
-export function getAllOverlaps(): ProjectOverlap[] {
+export function getAllOverlaps(overlaps: ProjectOverlap[]): ProjectOverlap[] {
   return overlaps;
 }
 
-export function getOverlapsForProject(projectId: string): ProjectOverlap[] {
+export function getOverlapsForProject(
+  overlaps: ProjectOverlap[],
+  projectId: string,
+): ProjectOverlap[] {
   return overlaps.filter((o) => o.projectIdA === projectId || o.projectIdB === projectId);
 }
 
-export function getLinkedProjects(project: GridlockProject): GridlockProject[] {
+export function getLinkedProjects(
+  projects: GridlockProject[],
+  project: GridlockProject,
+): GridlockProject[] {
+  const projectById = new Map(projects.map((p) => [p.id, p]));
   return project.overlapProjectIds
     .map((id) => projectById.get(id))
     .filter((p): p is GridlockProject => Boolean(p));
 }
 
-export function searchProjects(filters: SearchFilters): GridlockProject[] {
+export function searchProjects(
+  projects: GridlockProject[],
+  filters: SearchFilters,
+  queuePoints: ReviewQueuePoint[] = [],
+): GridlockProject[] {
   const q = filters.query.trim().toLowerCase();
+  const pointsByProject = queuePointsByProjectId(queuePoints);
+
   return projects.filter((p) => {
     if (filters.utility && p.utilityKey !== filters.utility) return false;
     if (filters.state && p.state !== filters.state) return false;
     if (filters.overlapsOnly && p.overlapCount === 0) return false;
-    if (filters.workType && classifyWorkType(p.name) !== filters.workType) return false;
-    if (filters.county && getPilotProjectCountyFips(p.id) !== filters.county) return false;
+    if (filters.workType && workTypeForProject(p) !== filters.workType) return false;
+    if (filters.county) {
+      const inPilotCounty = getPilotProjectCountyFips(p.id) === filters.county;
+      const inPointCounty = (pointsByProject.get(p.id) ?? []).some(
+        (pt) => getQueuePointCountyFips(pt.id) === filters.county,
+      );
+      if (!inPilotCounty && !inPointCounty) return false;
+    }
     if (!q) return true;
-    const haystack = [p.id, p.name, p.utility, p.state, p.endpointA.label, p.endpointB.label]
+    const pointHaystack = (pointsByProject.get(p.id) ?? [])
+      .map(queuePointSearchHaystack)
+      .join(" ");
+    const haystack = [
+      p.id,
+      p.name,
+      p.utility,
+      p.state,
+      p.endpointA.label,
+      p.endpointB.label,
+      pointHaystack,
+    ]
       .filter(Boolean)
       .join(" ")
       .toLowerCase();
@@ -67,17 +92,15 @@ export function searchProjects(filters: SearchFilters): GridlockProject[] {
   });
 }
 
-/** Pilot overlap projects plus full geocode review-queue location points. */
-export function searchCatalog(filters: SearchFilters): CatalogSearchResult[] {
-  const pilot = searchProjects(filters).map((project) => ({
+export function searchCatalog(
+  projects: GridlockProject[],
+  queuePoints: ReviewQueuePoint[],
+  filters: SearchFilters,
+): CatalogSearchResult[] {
+  return searchProjects(projects, filters, queuePoints).map((project) => ({
     kind: "pilot" as const,
     project,
   }));
-  const queue = searchReviewQueuePoints(filters).map((point) => ({
-    kind: "queue" as const,
-    point,
-  }));
-  return [...pilot, ...queue];
 }
 
 export type DashboardSummary = {
@@ -89,7 +112,10 @@ export type DashboardSummary = {
   projectsMissingEndpointCoords: number;
 };
 
-export function getDashboardSummary(): DashboardSummary {
+export function getDashboardSummary(
+  projects: GridlockProject[],
+  overlaps: ProjectOverlap[],
+): DashboardSummary {
   let projectsWithCoords = 0;
   let projectsMissingEndpointCoords = 0;
   for (const p of projects) {
@@ -108,19 +134,6 @@ export function getDashboardSummary(): DashboardSummary {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/*  Ranked coordination opportunities with cost/impact estimates      */
-/* ------------------------------------------------------------------ */
-
-/**
- * Coordination score: 0–100. Higher = stronger coordination opportunity.
- *
- * Two factors (each 0–50):
- *   1. Proximity: projects < 5 mi apart score 50; at 20 mi → 0.
- *   2. Schedule alignment: projects with 0 day gap score 50; at 3000+ days → 0.
- *
- * The composite score answers: "How likely would co-planning save money?"
- */
 function coordinationScore(distanceMi: number | null, timeGapDays: number | null): number {
   const d = distanceMi ?? 30;
   const t = timeGapDays ?? 5000;
@@ -147,17 +160,6 @@ function classifyOpportunity(
   return "Staggered build";
 }
 
-/**
- * Rough cost-impact estimate for a coordination opportunity.
- *
- * Model (industry averages from FERC / EEI / ASCE data):
- *   - Transmission ROW acquisition: ~$200 k/mile (rural SE US avg)
- *   - Shared-ROW savings: ~40-60% of land cost for the overlapping corridor
- *   - Joint-construction mobilisation savings: ~$800k–$1.5M per shared mob event
- *   - Shared substation pad: ~$2–4M for land + civil, 30–50% savings if shared
- *
- * We use the conservative end of each range and note it's an order-of-magnitude estimate.
- */
 export type CostImpact = {
   sharedRowMiles: number;
   rowCostPerMile: number;
@@ -219,7 +221,9 @@ export type RankedOpportunity = {
   costImpact: CostImpact;
 };
 
-export function getRankedCoordinationOpportunities(): RankedOpportunity[] {
+export function getRankedCoordinationOpportunities(
+  overlaps: ProjectOverlap[],
+): RankedOpportunity[] {
   return overlaps
     .map((o) => ({
       overlap: o,
@@ -240,3 +244,9 @@ export function utilityBadgeClass(key: UtilityKey): string {
     ? "bg-dominion-light text-dominion border-dominion/30"
     : "bg-georgia-light text-georgia border-georgia/30";
 }
+
+export function apiUtilityLabel(utility: ApiUtility): string {
+  return utility === "DESC" ? "Dominion Energy SC" : "Georgia Power";
+}
+
+export { utilityKeyFromApi };

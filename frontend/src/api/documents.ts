@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+import { getApiBaseUrl } from "./client";
 
 export type UploadPdfResult = {
   message: string;
@@ -7,25 +7,12 @@ export type UploadPdfResult = {
 };
 
 export async function uploadProjectPdf(file: File, signal?: AbortSignal): Promise<UploadPdfResult> {
-  if (!API_BASE) {
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, 600);
-    });
-    if (signal?.aborted) {
-      throw new DOMException("Upload cancelled", "AbortError");
-    }
-    return {
-      message:
-        "PDF validated on this device. Set VITE_API_BASE_URL to post the file to your backend.",
-      fileName: file.name,
-      bytes: file.size,
-    };
-  }
+  const apiBase = getApiBaseUrl();
 
   const body = new FormData();
   body.append("file", file);
 
-  const response = await fetch(`${API_BASE}/api/documents/upload`, {
+  const response = await fetch(`${apiBase}/api/documents/upload`, {
     method: "POST",
     body,
     signal,

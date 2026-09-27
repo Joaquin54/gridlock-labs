@@ -18,6 +18,7 @@ import {
   MAP_HOVER_STROKE_WIDTH,
   MAP_INSET_STROKE,
   MAP_MUTED_STATE_FILL,
+  MAP_MUTED_STATE_STROKE,
   MAP_SELECTED_STROKE,
   MAP_SELECTED_STROKE_WIDTH,
   MAP_STATE_BOUNDARY_STROKE,
@@ -128,13 +129,15 @@ type RegionalProjectMapProps = {
   selectedProjectId?: string | null;
   title?: string;
   initialPosition?: MapPosition;
+  /** When false, county heatmap stays visible but counties/states are not hovered or clickable — only points are interactive. */
+  countyInteractivity?: boolean;
 };
 
 function geocodeMarkerFill(point: ReviewQueuePoint, colorBy: GeocodeMarkerColorBy): string {
   if (colorBy === "utility") {
     return utilityKeyFromQueueCode(point.utility) === "dominion"
-      ? "var(--dominion)"
-      : "var(--georgia)";
+      ? "var(--map-utility-dominion)"
+      : "var(--map-utility-georgia)";
   }
   return confidenceMarkerFill(point.confidence);
 }
@@ -155,6 +158,7 @@ export default function RegionalProjectMap({
   selectedProjectId,
   title = "SC & GA project footprint",
   initialPosition,
+  countyInteractivity = true,
 }: RegionalProjectMapProps) {
   const startPosition = initialPosition ?? MAP_DEFAULT_POSITION;
   const [startLng, startLat] = startPosition.coordinates;
@@ -325,7 +329,7 @@ export default function RegionalProjectMap({
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="relative w-full flex-1 min-h-[310px] max-h-[500px] bg-accent-light/40 dark:bg-surface-hover rounded-md overflow-hidden touch-none">
-          {hoverCounty ? (
+          {countyInteractivity && hoverCounty ? (
             <div
               className="pointer-events-none absolute left-2 top-2 z-10 rounded-md border border-border bg-surface px-2 py-1 text-[0.8125rem] text-text-primary shadow-md"
               role="status"
@@ -354,7 +358,7 @@ export default function RegionalProjectMap({
                   geographies.map((geo) => {
                     const name = geo.properties.name ?? "";
                     const highlighted = HIGHLIGHT_STATES.has(name);
-                    const hovered = hoverState === name;
+                    const hovered = countyInteractivity && hoverState === name;
                     const baseFill = highlighted ? MAP_ZERO_FILL : MAP_MUTED_STATE_FILL;
                     return (
                       <Geography
@@ -366,7 +370,7 @@ export default function RegionalProjectMap({
                             ? MAP_HOVER_STROKE
                             : highlighted
                               ? MAP_INSET_STROKE
-                              : "#94a3b8"
+                              : MAP_MUTED_STATE_STROKE
                         }
                         strokeWidth={
                           hovered && highlighted ? MAP_HOVER_STROKE_WIDTH : highlighted ? 0.2 : 0.2
@@ -374,18 +378,29 @@ export default function RegionalProjectMap({
                         style={{
                           default: {
                             outline: "none",
-                            transition: "fill 0.15s ease, stroke 0.15s ease",
+                            pointerEvents: countyInteractivity ? undefined : "none",
+                            transition: countyInteractivity
+                              ? "fill 0.15s ease, stroke 0.15s ease"
+                              : undefined,
                             vectorEffect: hovered && highlighted ? "non-scaling-stroke" : undefined,
                           },
-                          hover: { outline: "none" },
-                          pressed: { outline: "none" },
+                          hover: { outline: "none", pointerEvents: countyInteractivity ? undefined : "none" },
+                          pressed: { outline: "none", pointerEvents: countyInteractivity ? undefined : "none" },
                         }}
-                        onMouseEnter={() => {
-                          if (highlighted) setHoverState(name);
-                        }}
-                        onMouseLeave={() => {
-                          setHoverState((s) => (s === name ? null : s));
-                        }}
+                        onMouseEnter={
+                          countyInteractivity
+                            ? () => {
+                                if (highlighted) setHoverState(name);
+                              }
+                            : undefined
+                        }
+                        onMouseLeave={
+                          countyInteractivity
+                            ? () => {
+                                setHoverState((s) => (s === name ? null : s));
+                              }
+                            : undefined
+                        }
                       />
                     );
                   })
@@ -395,6 +410,33 @@ export default function RegionalProjectMap({
               <Geographies geography={COUNTIES_GEO_URL}>
                 {({ geographies }: { geographies: CountyGeo[] }) => {
                   const scGa = geographies.filter((geo) => isScOrGaCounty(geo.id));
+
+                  if (!countyInteractivity) {
+                    return scGa.map((geo) => {
+                      const fips = String(geo.id ?? "");
+                      const count = countyCounts.get(fips) ?? 0;
+                      return (
+                      <Geography
+                        key={geo.rsmKey}
+                        geography={geo}
+                        fill={countyColorScale.getFill(count)}
+                        stroke={MAP_INSET_STROKE}
+                        strokeWidth={MAP_COUNTY_STROKE_WIDTH}
+                        style={{
+                          default: {
+                            outline: "none",
+                            pointerEvents: "none",
+                            vectorEffect: "non-scaling-stroke",
+                            strokeLinejoin: "round",
+                          },
+                          hover: { outline: "none", pointerEvents: "none" },
+                          pressed: { outline: "none", pointerEvents: "none" },
+                        }}
+                      />
+                      );
+                    });
+                  }
+
                   const elevatedFips = hoverCounty?.fips ?? selectedCountyFips;
 
                   const renderCountyLayer = (
@@ -480,9 +522,7 @@ export default function RegionalProjectMap({
                         key={p.id}
                         coordinates={[p.lon as number, p.lat as number]}
                         onMouseEnter={() => setFocusedPointId(p.id)}
-                        onClick={() => {
-                          if (p.googleMapsUrl) window.open(p.googleMapsUrl, "_blank", "noopener");
-                        }}
+                        onClick={() => onSelectProject?.(p.projectId)}
                       >
                         <circle
                           r={r}
@@ -507,7 +547,11 @@ export default function RegionalProjectMap({
                       >
                         <circle
                           r={r}
-                          fill={p.utilityKey === "dominion" ? "var(--dominion)" : "var(--georgia)"}
+                          fill={
+                            p.utilityKey === "dominion"
+                              ? "var(--map-utility-dominion)"
+                              : "var(--map-utility-georgia)"
+                          }
                           stroke={MAP_DEFAULT_STROKE}
                           strokeWidth={1}
                           vectorEffect="non-scaling-stroke"

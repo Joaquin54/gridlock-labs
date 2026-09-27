@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -14,26 +14,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useGridlockData } from "../../data/GridlockDataContext";
 import {
-  getAllReviewQueuePoints,
   getBorderBreakdown,
   getGeocodeDashboardSummary,
-  getLineMilesBuckets,
-  getReviewQueueChartData,
-  getReviewQueuePrioritySample,
-  getUniqueProjectCountsByUtility,
   getUtilitySplit,
   getVoltageBreakdown,
   voltageClassLegendSortKey,
   getWorkTypeBreakdown,
 } from "../../data/geocodeRepository";
-import {
-  getAllProjects,
-  getDashboardSummary,
-  getRankedCoordinationOpportunities,
-  utilityShortLabel,
-} from "../../data/repository";
-import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
+import { utilityShortLabel } from "../../data/repository";
+import { projectDetailPath } from "../../utils/routes";
 import type { WorkType } from "../../types/project";
 import {
   CHART_AXIS_TICK,
@@ -45,24 +36,13 @@ import {
   suppressRechartsPointerFocus,
   CHART_TOOLTIP_LABEL_STYLE,
   CHART_TOOLTIP_STYLE,
-  CLS_DASHBOARD_INTRO,
   CLS_DASHBOARD_PANEL_CAPTION,
   CLS_DASHBOARD_PANEL_HEADER,
   CLS_DASHBOARD_PANEL_SHELL,
-  CLS_DASHBOARD_SECTION_TITLE,
 } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
-import {
-  formatCoord,
-  formatCount,
-  formatDateLabel,
-  formatMiles,
-  formatPercent,
-} from "../../utils/format";
-import ConfidenceBadge from "../shared/ConfidenceBadge";
+import { formatCount, formatDateLabel, formatMiles, formatPercent } from "../../utils/format";
 import StatCard from "../shared/StatCard";
-import TaskBadge from "../shared/TaskBadge";
-import UtilityBadge from "../shared/UtilityBadge";
 import RegionalProjectMap from "./RegionalProjectMap";
 
 const CLS_TH =
@@ -87,6 +67,11 @@ function pieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
 }
 
 type WorkTypeBarRow = { name: WorkType; gpc: number; desc: number };
+
+function workTypeAxisLabel(label: string): string {
+  if (!label) return label;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
 
 function workTypeBarRowFromClick(data: unknown): WorkTypeBarRow | undefined {
   if (!data || typeof data !== "object") return undefined;
@@ -116,16 +101,24 @@ export default function Dashboard() {
   }, []);
 
   const navigate = useNavigate();
-  const projects = getAllProjects();
-  const summary = getDashboardSummary();
-  const geocodeSummary = getGeocodeDashboardSummary();
-  const geocodeCharts = getReviewQueueChartData();
-  const geocodePoints = getAllReviewQueuePoints();
-  const reviewPriority = getReviewQueuePrioritySample(14);
+  const {
+    projects,
+    queuePoints: geocodePoints,
+    dashboardSummary: summary,
+    rankedOpportunities,
+  } = useGridlockData();
+  const geocodeSummary = getGeocodeDashboardSummary(geocodePoints);
 
-  const rankedOpportunities = getRankedCoordinationOpportunities();
-  const voltageData = getVoltageBreakdown();
-  const workTypeData = getWorkTypeBreakdown();
+  const pilotProjectsWithOverlaps = useMemo(
+    () =>
+      projects
+        .filter((p) => p.overlapCount > 0)
+        .sort((a, b) => b.overlapCount - a.overlapCount),
+    [projects],
+  );
+
+  const voltageData = getVoltageBreakdown(projects);
+  const workTypeData = getWorkTypeBreakdown(projects);
 
   const openWorkTypeSearch = useCallback(
     (workType: WorkType) => {
@@ -144,11 +137,8 @@ export default function Dashboard() {
     },
     [openWorkTypeSearch],
   );
-  const borderData = getBorderBreakdown();
-  const milesBuckets = getLineMilesBuckets();
-  const utilitySplit = getUtilitySplit();
-  const uniqueByUtility = getUniqueProjectCountsByUtility();
-  const borderProjectCount = borderData[0]?.value ?? 0;
+  const borderProjectCount = getBorderBreakdown(projects)[0]?.value ?? 0;
+  const utilitySplit = getUtilitySplit(geocodePoints);
 
   return (
     <div className="flex w-full flex-col px-6 py-[1.1rem] max-[900px]:px-3 max-[900px]:py-3">
@@ -166,7 +156,7 @@ export default function Dashboard() {
 
       <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
         <StatCard
-          label="Pilot cross-utility overlaps"
+          label="Project point overlaps"
           value={formatCount(summary.totalOverlaps)}
           accent="green"
         />
@@ -183,12 +173,14 @@ export default function Dashboard() {
         <RegionalProjectMap
           geocodePoints={geocodePoints}
           geocodeMarkerColorBy="utility"
-          title="SC & GA portfolio footprint"
+          title="SC & GA heatmap with project points"
+          countyInteractivity={false}
+          onSelectProject={(id) => navigate(projectDetailPath(id))}
         />
         <div className="flex min-h-[310px] flex-col gap-3">
           <div className="grid min-h-[210px] flex-1 grid-cols-1 gap-3 min-[901px]:grid-cols-2 min-[901px]:gap-3">
             <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[200px] flex-col")}>
-              <div className={CLS_DASHBOARD_PANEL_HEADER}>Portfolio by utility (points)</div>
+              <div className={CLS_DASHBOARD_PANEL_HEADER}>Utility split</div>
               <div className="min-h-0 flex-1">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart
@@ -273,7 +265,7 @@ export default function Dashboard() {
             </section>
           </div>
           <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type (unique projects)</div>
+            <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type statistics</div>
             <div className="min-h-0 flex-1 [&_.recharts-bar-rectangle]:cursor-pointer">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
@@ -293,21 +285,23 @@ export default function Dashboard() {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    width={84}
+                    width={108}
                     tickLine={false}
                     axisLine={false}
                     tick={CHART_AXIS_TICK}
+                    tickFormatter={workTypeAxisLabel}
                   />
                   <Tooltip
                     cursor={{ fill: "var(--surface-hover)" }}
                     contentStyle={CHART_TOOLTIP_STYLE}
                     labelStyle={CHART_TOOLTIP_LABEL_STYLE}
+                    labelFormatter={workTypeAxisLabel}
                   />
                   <Legend {...CHART_LEGEND_TOP} />
                   <Bar
                     dataKey="gpc"
                     name="Georgia Power"
-                    fill="var(--georgia)"
+                    fill="var(--map-utility-georgia)"
                     maxBarSize={10}
                     radius={[0, 3, 3, 0]}
                     onClick={handleWorkTypeBarClick}
@@ -315,7 +309,7 @@ export default function Dashboard() {
                   <Bar
                     dataKey="desc"
                     name="Dominion (SC)"
-                    fill="var(--dominion)"
+                    fill="var(--map-utility-dominion)"
                     maxBarSize={10}
                     radius={[0, 3, 3, 0]}
                     onClick={handleWorkTypeBarClick}
@@ -405,7 +399,7 @@ export default function Dashboard() {
                     <button
                       type="button"
                       className="cursor-pointer truncate border-none bg-transparent p-0 text-left text-[0.8125rem] font-medium text-accent-text hover:underline"
-                      onClick={() => navigate(`/projects/${opp.overlap.projectIdA}`)}
+                      onClick={() => navigate(projectDetailPath(opp.overlap.projectIdA))}
                     >
                       {opp.overlap.projectNameA}
                     </button>
@@ -414,7 +408,7 @@ export default function Dashboard() {
                     <button
                       type="button"
                       className="cursor-pointer truncate border-none bg-transparent p-0 text-left text-[0.8125rem] font-medium text-accent-text hover:underline"
-                      onClick={() => navigate(`/projects/${opp.overlap.projectIdB}`)}
+                      onClick={() => navigate(projectDetailPath(opp.overlap.projectIdB))}
                     >
                       {opp.overlap.projectNameB}
                     </button>
@@ -465,7 +459,9 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
-                  onClick={() => navigate(`/projects/${rankedOpportunities[0].overlap.projectIdA}`)}
+                  onClick={() =>
+                    navigate(projectDetailPath(rankedOpportunities[0].overlap.projectIdA))
+                  }
                 >
                   {rankedOpportunities[0].overlap.projectNameA}
                 </button>
@@ -473,7 +469,9 @@ export default function Dashboard() {
                 <button
                   type="button"
                   className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
-                  onClick={() => navigate(`/projects/${rankedOpportunities[0].overlap.projectIdB}`)}
+                  onClick={() =>
+                    navigate(projectDetailPath(rankedOpportunities[0].overlap.projectIdB))
+                  }
                 >
                   {rankedOpportunities[0].overlap.projectNameB}
                 </button>
@@ -534,7 +532,7 @@ export default function Dashboard() {
 
       <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
         <div className={CLS_DASHBOARD_PANEL_HEADER}>
-          Pilot projects (quick view — {formatCount(summary.totalProjects)} curated)
+          Project overlaps list
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.8125rem]">
@@ -548,11 +546,11 @@ export default function Dashboard() {
               </tr>
             </thead>
             <tbody>
-              {projects.map((p) => (
+              {pilotProjectsWithOverlaps.map((p) => (
                 <tr
                   key={p.id}
                   className="cursor-pointer border-b border-border transition-[background] duration-100 last:border-b-0 hover:bg-surface-hover"
-                  onClick={() => navigate(`/projects/${p.id}`)}
+                  onClick={() => navigate(projectDetailPath(p.id))}
                 >
                   <td className={cn(CLS_TD, "font-mono text-[0.6875rem] text-text-muted")}>
                     {p.id}
@@ -571,333 +569,6 @@ export default function Dashboard() {
           </table>
         </div>
       </section>
-
-      {/* ── Portfolio analytics ── */}
-      <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
-        <h2 className={CLS_DASHBOARD_SECTION_TITLE}>Portfolio analytics</h2>
-        <p className={CLS_DASHBOARD_INTRO}>
-          Breakdown of {formatCount(geocodeSummary.uniqueProjects)} transmission projects across
-          Dominion Energy SC and Georgia Power — border vs interior and line-mile scale.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Border vs interior</div>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart {...CHART_RECHARTS_PROPS}>
-                <Pie
-                  {...CHART_PIE_NO_FOCUS_RING}
-                  data={borderData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="46%"
-                  innerRadius="48%"
-                  outerRadius="72%"
-                  paddingAngle={3}
-                  strokeWidth={0}
-                >
-                  {borderData.map((entry) => (
-                    <Cell key={entry.name} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  formatter={(value) => [`${value} projects`]}
-                />
-                <Legend {...CHART_LEGEND_BOTTOM} formatter={pieLegendLabel} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-
-        {/* Line miles distribution */}
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[260px] flex-col")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Line miles distribution</div>
-          <p className={CLS_DASHBOARD_PANEL_CAPTION}>
-            How long are planned transmission line segments?
-          </p>
-          <div className="min-h-0 flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                {...CHART_RECHARTS_PROPS}
-                data={milesBuckets}
-                margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                <XAxis
-                  dataKey="bucket"
-                  tickLine={false}
-                  axisLine={{ stroke: "var(--border)" }}
-                  tick={CHART_AXIS_TICK}
-                  interval={0}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  width={32}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={CHART_AXIS_TICK}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--surface-hover)" }}
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  formatter={(value) => [`${value} points`, "Count"]}
-                  labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                />
-                <Bar dataKey="count" fill="var(--georgia)" maxBarSize={48} radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </section>
-      </div>
-
-      {/* ── Geocode review queue ── */}
-      <div className="mb-3 mt-8 flex flex-col gap-1 border-t border-border pt-6">
-        <h2 className={CLS_DASHBOARD_SECTION_TITLE}>Geocode review queue</h2>
-        <p className={CLS_DASHBOARD_INTRO}>
-          Point-level locations extracted from utility project descriptions. Tasks progress from
-          FIND → CONFIRM; confidence reflects how sure we are in lat/lon until field verification
-          completes.
-        </p>
-      </div>
-
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
-        <StatCard label="Queue points" value={formatCount(geocodeSummary.totalPoints)} />
-        <StatCard
-          label="With coordinates"
-          value={formatPercent(geocodeSummary.locatedPct, 1)}
-          accent="green"
-        />
-        <StatCard
-          label="Still to locate (FIND)"
-          value={formatCount(geocodeSummary.findRemaining)}
-          accent="dominion"
-        />
-        <StatCard
-          label="High confidence"
-          value={formatCount(geocodeSummary.highConfidence)}
-          accent="georgia"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
-        <RegionalProjectMap geocodePoints={geocodePoints} title="Coordinate verification map" />
-        <div className="flex min-h-[310px] flex-col gap-3">
-          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[140px] flex-1 flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Review task backlog</div>
-            <div className="min-h-0 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  {...CHART_RECHARTS_PROPS}
-                  data={geocodeCharts.taskData}
-                  layout="vertical"
-                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                  <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    tickLine={false}
-                    axisLine={{ stroke: "var(--border)" }}
-                    tick={CHART_AXIS_TICK}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="task"
-                    width={64}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={CHART_AXIS_TICK}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "var(--surface-hover)" }}
-                    contentStyle={CHART_TOOLTIP_STYLE}
-                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                  />
-                  <Bar dataKey="count" fill="var(--chart-accent)" maxBarSize={20} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[140px] flex-1 flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Confidence mix</div>
-            <div className="min-h-0 flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  {...CHART_RECHARTS_PROPS}
-                  data={geocodeCharts.confidenceBars}
-                  margin={{ top: 4, right: 4, left: 0, bottom: 4 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={{ stroke: "var(--border)" }}
-                    tick={CHART_AXIS_TICK}
-                    interval={0}
-                    angle={-20}
-                    textAnchor="end"
-                    height={48}
-                  />
-                  <YAxis
-                    allowDecimals={false}
-                    width={32}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={CHART_AXIS_TICK}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "var(--surface-hover)" }}
-                    contentStyle={CHART_TOOLTIP_STYLE}
-                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                  />
-                  <Bar dataKey="count" maxBarSize={48} radius={[6, 6, 0, 0]}>
-                    {geocodeCharts.confidenceBars.map((entry) => (
-                      <Cell key={entry.name} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-          <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[120px] flex-col")}>
-            <div className={CLS_DASHBOARD_PANEL_HEADER}>Top regions</div>
-            <div className="min-h-[100px] flex-1">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  {...CHART_RECHARTS_PROPS}
-                  data={geocodeCharts.regionData}
-                  layout="vertical"
-                  margin={{ top: 4, right: 8, left: 4, bottom: 4 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
-                  <XAxis
-                    type="number"
-                    allowDecimals={false}
-                    tickLine={false}
-                    axisLine={{ stroke: "var(--border)" }}
-                    tick={CHART_AXIS_TICK}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="region"
-                    width={96}
-                    tickLine={false}
-                    axisLine={false}
-                    tick={CHART_AXIS_TICK}
-                    tickFormatter={(v: string) => regionLabel(v)}
-                  />
-                  <Tooltip
-                    cursor={{ fill: "var(--surface-hover)" }}
-                    contentStyle={CHART_TOOLTIP_STYLE}
-                    formatter={(value) => [value, "Points"]}
-                    labelFormatter={(label) => regionLabel(String(label))}
-                    labelStyle={CHART_TOOLTIP_LABEL_STYLE}
-                  />
-                  <Bar
-                    dataKey="count"
-                    fill="var(--georgia)"
-                    maxBarSize={16}
-                    radius={[0, 4, 4, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </section>
-        </div>
-      </div>
-
-      <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
-        <div className={CLS_DASHBOARD_PANEL_HEADER}>
-          Priority review (FIND & low confidence first)
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[0.8125rem]">
-            <thead>
-              <tr className="border-b-2 border-border-strong text-left">
-                <th className={CLS_TH}>Utility</th>
-                <th className={CLS_TH}>Task</th>
-                <th className={CLS_TH}>Confidence</th>
-                <th className={CLS_TH}>Point</th>
-                <th className={CLS_TH}>Region</th>
-                <th className={cn(CLS_TH, "text-right")}>Lat</th>
-                <th className={cn(CLS_TH, "text-right")}>Lon</th>
-                <th className={cn(CLS_TH, "text-right")}>Links</th>
-              </tr>
-            </thead>
-            <tbody>
-              {reviewPriority.map((p) => (
-                <tr key={p.id} className="border-b border-border last:border-b-0">
-                  <td className={CLS_TD}>
-                    <UtilityBadge utilityKey={utilityKeyFromQueueCode(p.utility)} />
-                  </td>
-                  <td className={CLS_TD}>
-                    <TaskBadge task={p.task} />
-                  </td>
-                  <td className={CLS_TD}>
-                    <ConfidenceBadge confidence={p.confidence} />
-                  </td>
-                  <td
-                    className={cn(CLS_TD, "max-w-[14rem] truncate text-text-primary")}
-                    title={p.pointName}
-                  >
-                    {p.pointName}
-                  </td>
-                  <td className={CLS_TD}>{regionLabel(p.region)}</td>
-                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
-                    {formatCoord(p.lat)}
-                  </td>
-                  <td className={cn(CLS_TD, "text-right font-mono text-[0.6875rem] tabular-nums")}>
-                    {formatCoord(p.lon)}
-                  </td>
-                  <td className={cn(CLS_TD, "text-right")}>
-                    {p.googleMapsUrl ? (
-                      <a
-                        href={p.googleMapsUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent-text hover:underline"
-                      >
-                        Map
-                      </a>
-                    ) : (
-                      <span className="text-text-muted">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="m-0 mt-2 text-[0.6875rem] text-text-muted">
-          {formatCount(geocodeSummary.uniqueProjects)} distinct projects ·{" "}
-          {formatCount(geocodeSummary.withCoordinates)} of {formatCount(geocodeSummary.totalPoints)}{" "}
-          points have coordinates. Regenerate from CSV:{" "}
-          <code className="font-mono text-[0.65rem]">bun run sync-review-queue</code>
-        </p>
-      </section>
-
-      <div className="mt-8 grid grid-cols-2 gap-2 border-t border-border pt-6 lg:grid-cols-4 min-[901px]:gap-3">
-        <StatCard
-          label="Points on map"
-          value={formatCount(geocodeSummary.withCoordinates)}
-          accent="green"
-        />
-        <StatCard label="Mapped coverage" value={formatPercent(geocodeSummary.locatedPct, 1)} />
-        <StatCard
-          label="Georgia Power projects"
-          value={formatCount(uniqueByUtility.gpc)}
-          accent="georgia"
-        />
-        <StatCard
-          label="Dominion (SC) projects"
-          value={formatCount(uniqueByUtility.desc)}
-          accent="dominion"
-        />
-      </div>
     </div>
   );
 }

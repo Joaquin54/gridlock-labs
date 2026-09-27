@@ -6,6 +6,7 @@ export type GeocodeTask = "FIND" | "CHECK" | "VERIFY" | "CONFIRM";
 export type ReviewQueuePoint = {
   id: string;
   utility: string;
+  projectId: string;
   projectKey: string;
   projectName: string;
   point: number;

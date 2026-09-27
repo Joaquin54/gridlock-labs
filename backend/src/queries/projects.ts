@@ -39,6 +39,7 @@ export type ProjectProperties = {
   work_type: string | null
   voltage_kv: number | null
   zone: string | null
+  is_border: boolean
   status: string | null
   start_date: string | null
   start_date_source: string | null
@@ -83,6 +84,7 @@ type ProjectRow = {
   work_type: string | null
   voltage_kv: number | null
   zone: string | null
+  is_border: boolean
   status: string | null
   start_date: string | null
   start_date_source: string | null
@@ -119,7 +121,7 @@ type PointRow = {
 const PROJECT_SELECT = sql`
   select
     p.id, p.utility, p.project_key, p.name, p.description, p.owner, p.owner_in_scope,
-    p.project_type, p.work_type, p.voltage_kv, p.zone, p.status,
+    p.project_type, p.work_type, p.voltage_kv, p.zone, p.is_border, p.status,
     p.start_date, p.start_date_source, p.in_service_date, p.in_service_raw,
     p.line_miles, p.miles_source, p.cost_usd, p.cost_low, p.cost_high,
     p.source_doc, p.source_page,
@@ -212,6 +214,7 @@ function toFeature(row: ProjectRow, points: ProjectPointOut[]): ProjectFeature {
       work_type: row.work_type,
       voltage_kv: row.voltage_kv,
       zone: row.zone,
+      is_border: row.is_border,
       status: row.status,
       start_date: row.start_date,
       start_date_source: row.start_date_source,

@@ -22,6 +22,14 @@ const queuePointCounty = new Map<string, string>();
 const pilotProjectCounty = new Map<string, string>();
 let indexPromise: Promise<void> | null = null;
 
+/** Call when portfolio coordinates change (e.g. after API load). */
+export function resetCountyIndex(): void {
+  indexPromise = null;
+  countyOptions = [];
+  queuePointCounty.clear();
+  pilotProjectCounty.clear();
+}
+
 function isScOrGaCountyFips(id: string | number | undefined): boolean {
   const fips = String(id ?? "");
   return fips.startsWith("13") || fips.startsWith("45");

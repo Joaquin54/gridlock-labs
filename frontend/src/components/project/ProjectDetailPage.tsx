@@ -1,10 +1,6 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
-import {
-  getLinkedProjects,
-  getOverlapsForProject,
-  getProjectById,
-  utilityShortLabel,
-} from "../../data/repository";
+import { useGridlockData } from "../../data/GridlockDataContext";
+import { utilityShortLabel } from "../../data/repository";
 import type { GridlockProject } from "../../types/project";
 import {
   CLS_DASHBOARD_PANEL_HEADER,
@@ -15,6 +11,7 @@ import {
 } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
 import { formatCoord, formatDateLabel, formatDays, formatMiles } from "../../utils/format";
+import { projectDetailPath } from "../../utils/routes";
 import RegionalProjectMap from "../dashboard/RegionalProjectMap";
 import UtilityBadge from "../shared/UtilityBadge";
 
@@ -47,12 +44,13 @@ function EndpointBlock({
   );
 }
 
-/** Collect the current project + every overlapping project (deduped). */
-function getMapProjectsAndPosition(project: GridlockProject): {
+function getMapProjectsAndPosition(
+  project: GridlockProject,
+  linked: GridlockProject[],
+): {
   mapProjects: GridlockProject[];
   initialPosition: { coordinates: [number, number]; zoom: number };
 } {
-  const linked = getLinkedProjects(project);
   const seen = new Set<string>([project.id]);
   const all: GridlockProject[] = [project];
   for (const lp of linked) {
@@ -72,9 +70,11 @@ function getMapProjectsAndPosition(project: GridlockProject): {
 }
 
 export default function ProjectDetailPage() {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId: projectIdParam } = useParams<{ projectId: string }>();
+  const projectId = projectIdParam ? decodeURIComponent(projectIdParam) : undefined;
   const navigate = useNavigate();
-  const project = projectId ? getProjectById(projectId) : undefined;
+  const { getProject, overlapsForProject, linkedProjects } = useGridlockData();
+  const project = projectId ? getProject(projectId) : undefined;
 
   if (!project) {
     return (
@@ -87,9 +87,9 @@ export default function ProjectDetailPage() {
     );
   }
 
-  const overlaps = getOverlapsForProject(project.id);
-  const linked = getLinkedProjects(project);
-  const { mapProjects, initialPosition } = getMapProjectsAndPosition(project);
+  const overlaps = overlapsForProject(project.id);
+  const linked = linkedProjects(project);
+  const { mapProjects, initialPosition } = getMapProjectsAndPosition(project, linked);
 
   return (
     <div className="flex w-full flex-col pb-6">
@@ -118,21 +118,19 @@ export default function ProjectDetailPage() {
         </p>
       </header>
 
-      {/* ── Map (left) + project details (right) — mirrors dashboard layout ── */}
       <div className="grid grid-cols-1 items-stretch gap-3 xl:grid-cols-[1.1fr_0.9fr]">
         <RegionalProjectMap
           key={project.id}
           projects={mapProjects}
           selectedProjectId={project.id}
           onSelectProject={(id) => {
-            if (id !== project.id) navigate(`/projects/${id}`);
+            if (id !== project.id) navigate(projectDetailPath(id));
           }}
           title={`${project.name} — overlap footprint`}
           initialPosition={initialPosition}
         />
 
         <div className="flex flex-col gap-3">
-          {/* Stat cards */}
           <div className="grid grid-cols-2 gap-3">
             <div className="rounded-lg border border-border bg-surface px-4 py-[0.9rem] text-center">
               <div className="font-mono text-[1.45rem] font-bold leading-[1.2] text-accent">
@@ -152,7 +150,6 @@ export default function ProjectDetailPage() {
             </div>
           </div>
 
-          {/* Project info */}
           <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex flex-col gap-2.5")}>
             <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "mb-0")}>Project details</div>
             <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
@@ -177,13 +174,11 @@ export default function ProjectDetailPage() {
             </div>
           </section>
 
-          {/* Endpoints */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <EndpointBlock title="Endpoint A" endpoint={project.endpointA} />
             <EndpointBlock title="Endpoint B" endpoint={project.endpointB} />
           </div>
 
-          {/* Overlap records (inline in right column) */}
           <section className={CLS_DASHBOARD_PANEL_SHELL}>
             <div className={CLS_DASHBOARD_PANEL_HEADER}>
               Cross-utility overlap records ({overlaps.length})
@@ -207,7 +202,7 @@ export default function ProjectDetailPage() {
                           CLS_PANEL_ITEM_INTERACTIVE,
                           "block w-full text-left",
                         )}
-                        onClick={() => navigate(`/projects/${otherId}`)}
+                        onClick={() => navigate(projectDetailPath(otherId))}
                       >
                         <div className={CLS_PANEL_ITEM_META}>
                           <span>{o.id}</span>
@@ -235,50 +230,6 @@ export default function ProjectDetailPage() {
           </section>
         </div>
       </div>
-
-      {/* ── Linked projects (full width below) ── */}
-      {linked.length > 0 ? (
-        <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "mt-[0.85rem]")}>
-          <div className={CLS_DASHBOARD_PANEL_HEADER}>Linked projects (sheet references)</div>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {linked.map((lp) => (
-              <li key={lp.id}>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/projects/${lp.id}`)}
-                  className={cn(
-                    CLS_PANEL_ITEM,
-                    CLS_PANEL_ITEM_INTERACTIVE,
-                    "block w-full text-left",
-                  )}
-                >
-                  <div className={CLS_PANEL_ITEM_META}>
-                    <UtilityBadge utilityKey={lp.utilityKey} />
-                    <span>{lp.id}</span>
-                    <span className="text-border-strong" aria-hidden>
-                      ·
-                    </span>
-                    <span>{lp.state}</span>
-                    <span className="text-border-strong" aria-hidden>
-                      ·
-                    </span>
-                    <span>In service {formatDateLabel(lp.inServiceDate)}</span>
-                  </div>
-                  <span className="mt-1.5 block text-[0.8125rem] font-medium leading-snug text-text-primary">
-                    {lp.name}
-                  </span>
-                  <span className="mt-0.5 block text-[0.6875rem] text-text-muted">
-                    {lp.utility}
-                    {lp.center.lat != null && lp.center.lon != null
-                      ? ` · ${formatCoord(lp.center.lat)}, ${formatCoord(lp.center.lon)}`
-                      : ""}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
     </div>
   );
 }

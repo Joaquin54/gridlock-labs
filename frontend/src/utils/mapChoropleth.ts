@@ -1,7 +1,7 @@
 import { scaleThreshold } from "d3-scale";
 
-/** Matches KBR StateMap — fill for zero project / point count. */
-export const MAP_ZERO_FILL = "#e8ffea";
+/** Matches KBR StateMap — fill for zero project / point count (theme via CSS). */
+export const MAP_ZERO_FILL = "var(--map-zero-fill)";
 
 /** Eight-step choropleth — mint → navy (KBR StateMap). */
 export const MAP_COLOR_STOPS = [
@@ -22,7 +22,8 @@ export const MAP_SELECTED_STROKE = "#1a56db";
 export const MAP_HOVER_STROKE_WIDTH = 3;
 export const MAP_SELECTED_STROKE_WIDTH = 3;
 export const MAP_DEFAULT_STROKE = "#ffffff";
-export const MAP_MUTED_STATE_FILL = "#e8edf5";
+export const MAP_MUTED_STATE_FILL = "var(--map-muted-state-fill)";
+export const MAP_MUTED_STATE_STROKE = "var(--map-muted-state-stroke)";
 /** County interior lines */
 export const MAP_INSET_STROKE = "#2f6b52";
 export const MAP_COUNTY_STROKE_WIDTH = 0.9;
