@@ -1,0 +1,43 @@
+# Dev stack. No local Postgres: DATABASE_URL points at the hosted Tiger Data
+# instance (append ?sslmode=require). Unset DATABASE_URL -> backend falls back to
+# in-memory PGlite with fixture data.
+services:
+  backend:
+    build:
+      context: ./backend
+      target: dev
+    environment:
+      PORT: 3000
+      DATABASE_URL: ${DATABASE_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/drizzle.config.ts:/app/drizzle.config.ts
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "process.exit((await fetch('http://127.0.0.1:3000/health')).ok ? 0 : 1)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  frontend:
+    build:
+      context: ./frontend
+      target: dev
+    environment:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+    depends_on:
+      backend:
+        condition: service_started
