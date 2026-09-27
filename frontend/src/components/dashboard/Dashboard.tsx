@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Bar,
@@ -126,11 +126,24 @@ export default function Dashboard() {
   const rankedOpportunities = getRankedCoordinationOpportunities();
   const voltageData = getVoltageBreakdown();
   const workTypeData = getWorkTypeBreakdown();
-  const goToWorkTypeSearch = (row: WorkTypeBarRow | undefined) => {
-    if (!row?.name) return;
-    const params = new URLSearchParams({ workType: row.name });
-    navigate(`/search?${params.toString()}`);
-  };
+
+  const openWorkTypeSearch = useCallback(
+    (workType: WorkType) => {
+      const params = new URLSearchParams();
+      params.set("workType", workType);
+      navigate(`/search?${params.toString()}`);
+    },
+    [navigate],
+  );
+
+  const handleWorkTypeBarClick = useCallback(
+    (data: unknown) => {
+      const row = workTypeBarRowFromClick(data);
+      if (!row?.name) return;
+      openWorkTypeSearch(row.name);
+    },
+    [openWorkTypeSearch],
+  );
   const borderData = getBorderBreakdown();
   const milesBuckets = getLineMilesBuckets();
   const utilitySplit = getUtilitySplit();
@@ -261,7 +274,7 @@ export default function Dashboard() {
           </div>
           <section className={cn(CLS_DASHBOARD_PANEL_SHELL, "flex min-h-[150px] flex-1 flex-col")}>
             <div className={CLS_DASHBOARD_PANEL_HEADER}>Work type (unique projects)</div>
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 flex-1 [&_.recharts-bar-rectangle]:cursor-pointer">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   {...CHART_RECHARTS_PROPS}
@@ -297,10 +310,7 @@ export default function Dashboard() {
                     fill="var(--georgia)"
                     maxBarSize={10}
                     radius={[0, 3, 3, 0]}
-                    className="cursor-pointer"
-                    onClick={(data) => {
-                      goToWorkTypeSearch(workTypeBarRowFromClick(data));
-                    }}
+                    onClick={handleWorkTypeBarClick}
                   />
                   <Bar
                     dataKey="desc"
@@ -308,10 +318,7 @@ export default function Dashboard() {
                     fill="var(--dominion)"
                     maxBarSize={10}
                     radius={[0, 3, 3, 0]}
-                    className="cursor-pointer"
-                    onClick={(data) => {
-                      goToWorkTypeSearch(workTypeBarRowFromClick(data));
-                    }}
+                    onClick={handleWorkTypeBarClick}
                   />
                 </BarChart>
               </ResponsiveContainer>

@@ -32,6 +32,8 @@ export const FIXTURE_PROJECTS: NewProject[] = [
     costHigh: 2200080,
     sourceDoc: 'fixture.pdf',
     sourcePage: 3,
+    confidence: 'medium',
+    isBorder: true,
   },
   {
     utility: 'DESC',
@@ -55,6 +57,8 @@ export const FIXTURE_PROJECTS: NewProject[] = [
     costHigh: 8100000,
     sourceDoc: 'fixture.pdf',
     sourcePage: 4,
+    confidence: 'high',
+    isBorder: false,
   },
   {
     utility: 'GPC',
@@ -78,6 +82,8 @@ export const FIXTURE_PROJECTS: NewProject[] = [
     costHigh: 11500000,
     sourceDoc: 'fixture.pdf',
     sourcePage: 17,
+    confidence: 'medium',
+    isBorder: true,
   },
   {
     utility: 'GPC',
@@ -101,6 +107,8 @@ export const FIXTURE_PROJECTS: NewProject[] = [
     costHigh: null,
     sourceDoc: 'fixture.pdf',
     sourcePage: 22,
+    confidence: 'low',
+    isBorder: false,
   },
   {
     utility: 'GPC',
@@ -124,6 +132,8 @@ export const FIXTURE_PROJECTS: NewProject[] = [
     costHigh: 1700000,
     sourceDoc: 'fixture.pdf',
     sourcePage: 31,
+    confidence: 'low',
+    isBorder: false,
   },
 ]
 
