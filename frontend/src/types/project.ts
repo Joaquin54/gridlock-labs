@@ -2,6 +2,14 @@ import type { ReviewQueuePoint } from "./geocode";
 
 export type UtilityKey = "dominion" | "georgia-power";
 
+export type WorkType =
+  | "Rebuild"
+  | "Construct / New"
+  | "Replace"
+  | "Reconductor"
+  | "Install"
+  | "Other";
+
 export type ProjectEndpoint = {
   label: string | null;
   lat: number | null;
@@ -38,6 +46,9 @@ export type SearchFilters = {
   query: string;
   utility: "" | UtilityKey;
   state: "" | "GA" | "SC";
+  /** County FIPS (13xxx GA, 45xxx SC) */
+  county: string;
+  workType: "" | WorkType;
   overlapsOnly: boolean;
 };
 

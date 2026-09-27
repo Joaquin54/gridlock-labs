@@ -1,8 +1,14 @@
-import { type FormEvent, type ReactNode, useMemo, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { searchCatalog } from "../../data/repository";
+import {
+  ensureCountyIndex,
+  getCountyOptionsForState,
+  isValidCountyFipsForState,
+} from "../../data/countyIndex";
+import { getAllReviewQueuePoints, WORK_TYPE_FILTER_OPTIONS } from "../../data/geocodeRepository";
+import { getAllProjects, searchCatalog } from "../../data/repository";
 import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
-import type { SearchFilters, UtilityKey } from "../../types/project";
+import type { SearchFilters, UtilityKey, WorkType } from "../../types/project";
 import { cn } from "../../utils/cn";
 import { formatDateLabel, formatMiles } from "../../utils/format";
 import ConfidenceBadge from "../shared/ConfidenceBadge";
@@ -18,13 +24,32 @@ const CLS_BUTTON_PRIMARY =
 const CLS_BUTTON_CLEAR =
   "box-border min-h-[2.5rem] min-w-[4rem] cursor-pointer whitespace-nowrap rounded-sm border border-red-200/90 bg-red-50 px-4 font-sans text-[13px] font-medium text-red-700 transition-all duration-150 hover:border-red-300 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/45 dark:text-red-300 dark:hover:border-red-800/70 dark:hover:bg-red-950/70";
 
+function parseWorkType(raw: string | null): "" | WorkType {
+  if (!raw) return "";
+  return WORK_TYPE_FILTER_OPTIONS.includes(raw as WorkType) ? (raw as WorkType) : "";
+}
+
+function parseCountyFips(raw: string | null, state: "" | "GA" | "SC"): string {
+  const county = raw?.trim() ?? "";
+  if (!county || !state) return "";
+  const prefix = state === "GA" ? "13" : "45";
+  if (!county.startsWith(prefix) || !/^\d{5}$/.test(county)) return "";
+  const options = getCountyOptionsForState(state);
+  if (options.length === 0) return county;
+  return options.some((c) => c.fips === county) ? county : "";
+}
+
 function parseFilters(params: URLSearchParams): SearchFilters {
   const utility = params.get("utility");
-  const state = params.get("state");
+  const stateRaw = params.get("state");
+  const stateParsed: "" | "GA" | "SC" =
+    stateRaw === "GA" || stateRaw === "SC" ? stateRaw : "";
   return {
     query: params.get("q") ?? "",
     utility: utility === "dominion" || utility === "georgia-power" ? utility : "",
-    state: state === "GA" || state === "SC" ? state : "",
+    state: stateParsed,
+    county: parseCountyFips(params.get("county"), stateParsed),
+    workType: parseWorkType(params.get("workType")),
     overlapsOnly: params.get("overlaps") === "1",
   };
 }
@@ -34,6 +59,8 @@ function filtersToParams(filters: SearchFilters): URLSearchParams {
   if (filters.query.trim()) p.set("q", filters.query.trim());
   if (filters.utility) p.set("utility", filters.utility);
   if (filters.state) p.set("state", filters.state);
+  if (filters.workType) p.set("workType", filters.workType);
+  if (filters.county) p.set("county", filters.county);
   if (filters.overlapsOnly) p.set("overlaps", "1");
   return p;
 }
@@ -63,32 +90,37 @@ export default function SearchPage() {
   const applied = useMemo(() => parseFilters(searchParams), [searchParams]);
 
   const [draftQuery, setDraftQuery] = useState(applied.query);
-  const [draftUtility, setDraftUtility] = useState(applied.utility);
-  const [draftState, setDraftState] = useState(applied.state);
-  const [draftOverlapsOnly, setDraftOverlapsOnly] = useState(applied.overlapsOnly);
+  const [countyIndexReady, setCountyIndexReady] = useState(false);
+
+  useEffect(() => {
+    setDraftQuery(applied.query);
+  }, [applied.query]);
+
+  useEffect(() => {
+    void ensureCountyIndex(getAllReviewQueuePoints(), getAllProjects()).then(() => {
+      setCountyIndexReady(true);
+    });
+  }, []);
+
+  const countyOptions = useMemo(
+    () => (countyIndexReady ? getCountyOptionsForState(applied.state) : []),
+    [countyIndexReady, applied.state],
+  );
 
   const results = useMemo(() => searchCatalog(applied), [applied]);
 
-  const applyDraft = () => {
-    const next: SearchFilters = {
-      query: draftQuery,
-      utility: draftUtility,
-      state: draftState,
-      overlapsOnly: draftOverlapsOnly,
-    };
+  const applyFilters = (patch: Partial<SearchFilters>) => {
+    const next: SearchFilters = { ...applied, ...patch };
     setSearchParams(filtersToParams(next), { replace: true });
   };
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    applyDraft();
+    applyFilters({ query: draftQuery });
   };
 
   const clearFilters = () => {
     setDraftQuery("");
-    setDraftUtility("");
-    setDraftState("");
-    setDraftOverlapsOnly(false);
     setSearchParams(new URLSearchParams(), { replace: true });
   };
 
@@ -100,7 +132,7 @@ export default function SearchPage() {
         </h1>
         <p className="m-0 text-[0.8125rem] leading-snug text-text-secondary">
           Search pilot overlap projects and geocode review-queue location points by name, utility,
-          state, region, or overlap status.
+          state, work type, region, or overlap status.
         </p>
       </div>
 
@@ -128,8 +160,10 @@ export default function SearchPage() {
             className="w-[260px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
           >
             <select
-              value={draftUtility}
-              onChange={(e) => setDraftUtility(e.target.value as "" | UtilityKey)}
+              value={applied.utility}
+              onChange={(e) =>
+                applyFilters({ utility: e.target.value as "" | UtilityKey })
+              }
               className={CLS_CONTROL}
             >
               <option value="">All utilities</option>
@@ -140,8 +174,18 @@ export default function SearchPage() {
 
           <FilterField label="State" className="w-[175px] max-[1100px]:min-w-[120px]">
             <select
-              value={draftState}
-              onChange={(e) => setDraftState(e.target.value as "" | "GA" | "SC")}
+              value={applied.state}
+              onChange={(e) => {
+                const state = e.target.value as "" | "GA" | "SC";
+                const patch: Partial<SearchFilters> = { state };
+                if (
+                  applied.county &&
+                  (state === "" || !isValidCountyFipsForState(applied.county, state))
+                ) {
+                  patch.county = "";
+                }
+                applyFilters(patch);
+              }}
               className={CLS_CONTROL}
             >
               <option value="">All states</option>
@@ -150,12 +194,55 @@ export default function SearchPage() {
             </select>
           </FilterField>
 
+          <FilterField
+            label="County"
+            className="w-[220px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
+          >
+            <select
+              value={applied.state ? applied.county : ""}
+              disabled={!applied.state || !countyIndexReady}
+              onChange={(e) => applyFilters({ county: e.target.value })}
+              className={cn(CLS_CONTROL, (!applied.state || !countyIndexReady) && "opacity-60")}
+            >
+              <option value="">
+                {!applied.state
+                  ? "Select a state first"
+                  : countyIndexReady
+                    ? "All counties"
+                    : "Loading counties…"}
+              </option>
+              {countyOptions.map((county) => (
+                <option key={county.fips} value={county.fips}>
+                  {county.name}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+
+          <FilterField
+            label="Work type"
+            className="w-[220px] max-[1100px]:min-w-[150px] max-[1100px]:flex-1"
+          >
+            <select
+              value={applied.workType}
+              onChange={(e) => applyFilters({ workType: e.target.value as "" | WorkType })}
+              className={CLS_CONTROL}
+            >
+              <option value="">All work types</option>
+              {WORK_TYPE_FILTER_OPTIONS.map((workType) => (
+                <option key={workType} value={workType}>
+                  {workType}
+                </option>
+              ))}
+            </select>
+          </FilterField>
+
           <FilterField label="Overlaps" className="shrink-0">
             <label className="inline-flex min-h-[2.5rem] cursor-pointer items-center gap-2 text-[14px] text-text-primary">
               <input
                 type="checkbox"
-                checked={draftOverlapsOnly}
-                onChange={(e) => setDraftOverlapsOnly(e.target.checked)}
+                checked={applied.overlapsOnly}
+                onChange={(e) => applyFilters({ overlapsOnly: e.target.checked })}
                 className="size-4 accent-accent"
               />
               Overlaps only

@@ -5,7 +5,8 @@ import type {
   SearchFilters,
   UtilityKey,
 } from "../types/project";
-import { searchReviewQueuePoints } from "./geocodeRepository";
+import { getPilotProjectCountyFips } from "./countyIndex";
+import { classifyWorkType, searchReviewQueuePoints } from "./geocodeRepository";
 import seed from "./seed.json";
 
 type RawProject = Omit<GridlockProject, "utilityKey">;
@@ -55,6 +56,8 @@ export function searchProjects(filters: SearchFilters): GridlockProject[] {
     if (filters.utility && p.utilityKey !== filters.utility) return false;
     if (filters.state && p.state !== filters.state) return false;
     if (filters.overlapsOnly && p.overlapCount === 0) return false;
+    if (filters.workType && classifyWorkType(p.name) !== filters.workType) return false;
+    if (filters.county && getPilotProjectCountyFips(p.id) !== filters.county) return false;
     if (!q) return true;
     const haystack = [p.id, p.name, p.utility, p.state, p.endpointA.label, p.endpointB.label]
       .filter(Boolean)

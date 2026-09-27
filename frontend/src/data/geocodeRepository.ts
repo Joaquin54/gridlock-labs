@@ -5,7 +5,8 @@ import {
   regionLabel,
   utilityKeyFromQueueCode,
 } from "../types/geocode";
-import type { SearchFilters } from "../types/project";
+import { getQueuePointCountyFips } from "./countyIndex";
+import type { SearchFilters, WorkType } from "../types/project";
 import queueSeed from "./review-queue.json";
 
 const points: ReviewQueuePoint[] = queueSeed.points as ReviewQueuePoint[];
@@ -125,6 +126,10 @@ export function searchReviewQueuePoints(filters: SearchFilters): ReviewQueuePoin
     const utilityKey = utilityKeyFromQueueCode(p.utility);
     if (filters.utility && utilityKey !== filters.utility) return false;
     if (filters.state && stateForQueueUtility(p.utility) !== filters.state) return false;
+    if (filters.workType && classifyWorkType(p.projectName, p.description) !== filters.workType) {
+      return false;
+    }
+    if (filters.county && getQueuePointCountyFips(p.id) !== filters.county) return false;
     if (!q) return true;
     const haystack = [
       p.id,
@@ -180,45 +185,75 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
     "46 kV": "var(--voltage-46)",
     Other: "var(--voltage-other)",
   };
-  const order: VoltageClass[] = ["500 kV", "230 kV", "115 kV", "46 kV", "Other"];
-  return order
+  const order: VoltageClass[] = ["115 kV", "230 kV", "500 kV", "46 kV", "Other"];
+  const rows = order
     .filter((cls) => (counts.get(cls) ?? 0) > 0)
     .map((cls) => ({ name: cls, count: counts.get(cls) ?? 0, fill: fills[cls] }));
+
+  const total = rows.reduce((sum, row) => sum + row.count, 0);
+  const otherRow = rows.find((row) => row.name === "Other");
+  const minOtherShare = 0.015;
+  if (!otherRow || total === 0 || otherRow.count / total >= minOtherShare) {
+    return rows.map((row) => ({ ...row, sliceValue: row.count }));
+  }
+
+  const minOtherSlice = total * minOtherShare;
+  const shrink = minOtherSlice - otherRow.count;
+  const withoutOther = total - otherRow.count;
+  return rows.map((row) => {
+    if (row.name === "Other") {
+      return { ...row, sliceValue: minOtherSlice };
+    }
+    const scaled = row.count - (row.count / withoutOther) * shrink;
+    return { ...row, sliceValue: scaled };
+  });
 }
 
-export type WorkType =
-  | "Rebuild"
-  | "Construct / New"
-  | "Replace"
-  | "Reconductor"
-  | "Install"
-  | "Other";
+export const WORK_TYPE_FILTER_OPTIONS: readonly WorkType[] = [
+  "Rebuild",
+  "Construct / New",
+  "Replace",
+  "Reconductor",
+  "Install",
+  "Other",
+];
 
-export function getWorkTypeBreakdown(): Array<{ name: WorkType; count: number }> {
-  const counts: Record<WorkType, number> = {
-    Rebuild: 0,
-    "Construct / New": 0,
-    Replace: 0,
-    Reconductor: 0,
-    Install: 0,
-    Other: 0,
+export function classifyWorkType(projectName: string, description?: string | null): WorkType {
+  const text = `${projectName} ${description ?? ""}`.toUpperCase();
+  if (text.includes("REBUILD")) return "Rebuild";
+  if (text.includes("CONSTRUCT") || text.includes("NEW ")) return "Construct / New";
+  if (text.includes("RECONDUCTOR")) return "Reconductor";
+  if (text.includes("INSTALL")) return "Install";
+  if (text.includes("REPLACE")) return "Replace";
+  return "Other";
+}
+
+export function getWorkTypeBreakdown(): Array<{ name: WorkType; gpc: number; desc: number }> {
+  const counts: Record<WorkType, { gpc: number; desc: number }> = {
+    Rebuild: { gpc: 0, desc: 0 },
+    "Construct / New": { gpc: 0, desc: 0 },
+    Replace: { gpc: 0, desc: 0 },
+    Reconductor: { gpc: 0, desc: 0 },
+    Install: { gpc: 0, desc: 0 },
+    Other: { gpc: 0, desc: 0 },
   };
-  const seenProjects = new Set<string>();
+  const seenGpc = new Set<string>();
+  const seenDesc = new Set<string>();
   for (const p of points) {
-    if (seenProjects.has(p.projectKey)) continue;
-    seenProjects.add(p.projectKey);
-    const text = `${p.projectName} ${p.description ?? ""}`.toUpperCase();
-    if (text.includes("REBUILD")) counts.Rebuild++;
-    else if (text.includes("CONSTRUCT") || text.includes("NEW ")) counts["Construct / New"]++;
-    else if (text.includes("RECONDUCTOR")) counts.Reconductor++;
-    else if (text.includes("INSTALL")) counts.Install++;
-    else if (text.includes("REPLACE")) counts.Replace++;
-    else counts.Other++;
+    if (p.utility === "GPC") {
+      if (seenGpc.has(p.projectKey)) continue;
+      seenGpc.add(p.projectKey);
+      counts[classifyWorkType(p.projectName, p.description)].gpc += 1;
+    } else if (p.utility === "DESC") {
+      if (seenDesc.has(p.projectKey)) continue;
+      seenDesc.add(p.projectKey);
+      counts[classifyWorkType(p.projectName, p.description)].desc += 1;
+    }
   }
-  return (Object.entries(counts) as [WorkType, number][])
-    .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1])
-    .map(([name, count]) => ({ name, count }));
+  return (Object.entries(counts) as [WorkType, { gpc: number; desc: number }][])
+    .filter(([, v]) => v.gpc + v.desc > 0)
+    .sort((a, b) => b[1].gpc + b[1].desc - (a[1].gpc + a[1].desc))
+    .map(([name, { gpc, desc }]) => ({ name, gpc, desc }));
 }
 
 export function getBorderBreakdown(): Array<{ name: string; value: number; fill: string }> {
@@ -232,7 +267,7 @@ export function getBorderBreakdown(): Array<{ name: string; value: number; fill:
     else interior++;
   }
   return [
-    { name: "Cross-state border", value: border, fill: "var(--accent)" },
+    { name: "Cross-state border", value: border, fill: "var(--chart-accent)" },
     { name: "Interior", value: interior, fill: "var(--green)" },
   ];
 }
