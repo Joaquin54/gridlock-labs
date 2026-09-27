@@ -28,8 +28,46 @@ export function formatDateLabel(raw: string | null | undefined): string {
   return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
+export function formatPercent(value: number, digits = 0): string {
+  return `${value.toFixed(digits)}%`;
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+/** Whole-dollar USD for dashboard savings (matches backend deliverable rounding). */
+export function formatUsdCompact(amount: number): string {
+  const abs = Math.abs(amount);
+  if (abs >= 1_000_000) return `$${(amount / 1_000_000).toFixed(2)}M`;
+  if (abs >= 1_000) return `$${Math.round(amount / 1_000)}k`;
+  return `$${amount.toLocaleString()}`;
+}
+
+export function formatUsdRange(low: number, high: number): string {
+  return `${formatUsdCompact(low)}–${formatUsdCompact(high)}`;
+}
+
+export function formatUsdWhole(amount: number): string {
+  return `$${Math.round(amount).toLocaleString()}`;
+}
+
+export function formatProjectCost(
+  costUsd: number | null,
+  costLow: number | null,
+  costHigh: number | null,
+): string {
+  if (costUsd != null) return formatUsdWhole(costUsd);
+  if (costLow != null && costHigh != null) {
+    if (costLow === costHigh) return formatUsdWhole(costLow);
+    return `${formatUsdWhole(costLow)} – ${formatUsdWhole(costHigh)}`;
+  }
+  return "—";
+}
+
+export function formatHumanLabel(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "—";
+  return raw.replace(/_/g, " ");
 }

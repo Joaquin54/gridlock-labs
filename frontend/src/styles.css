@@ -1,23 +1,42 @@
 :root {
-  --bg: #eff5ff;
+  /* Light theme hues aligned to Sperry brand: green ~140°, blue ~218° (S/L unchanged from prior tokens) */
+  --bg: #f9fafb;
   --surface: #ffffff;
-  --surface-hover: #e0e9fd;
-  --border: #d8e2f8;
-  --border-strong: #b5c8eb;
-  --border-input: #cdd8ef;
-  --text-primary: #122034;
+  --surface-hover: #e0ebfd;
+  --border: #d8e4f8;
+  --border-strong: #b5c9eb;
+  --border-input: #cdd9ef;
+  --text-primary: #121e34;
   --text-secondary: #4a5b78;
-  --text-muted: #7383a0;
-  --accent: #6070c3;
-  --accent-hover: #334eb0;
-  --accent-light: #eff4ff;
-  --accent-text: #3b56ae;
+  --text-muted: #7384a0;
+  --accent: #6084c3;
+  --accent-hover: #3361b0;
+  --accent-light: #eff5ff;
+  --accent-text: #3b65ae;
   --green: #0f766e;
   --green-light: #e7faf3;
   --dominion: #c2410c;
   --dominion-light: #ffedd5;
   --georgia: #1d4ed8;
   --georgia-light: #dbeafe;
+  /* Charts / pies — fixed palette, separate from UI theme accent */
+  --chart-accent: #6070c3;
+  /* Voltage class mix pie — categorical, not utility brand colors */
+  --voltage-500: #7c3aed;
+  --voltage-230: #d97706;
+  --voltage-115: #0891b2;
+  --voltage-46: #db2777;
+  --voltage-other: #64748b;
+  /* Map point markers (confidence) — saturated for small dots on the choropleth */
+  --map-marker-high: #efd241;
+  --map-marker-medium: #2563eb;
+  --map-marker-low: #dc2626;
+  /* Map utility dots — fixed across themes (not UI badge tints) */
+  --map-utility-dominion: #c2410c;
+  --map-utility-georgia: #1d4ed8;
+  --map-muted-state-fill: #e8edf5;
+  --map-muted-state-stroke: #94a3b8;
+  --map-zero-fill: #e8ffea;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
@@ -26,6 +45,7 @@
 }
 
 :root[data-theme="dark"] {
+  --chart-accent: #7aa8ff;
   --bg: #0f1218;
   --surface: #171b24;
   --surface-hover: #202532;
@@ -45,6 +65,19 @@
   --dominion-light: #431407;
   --georgia: #93c5fd;
   --georgia-light: #1e3a5f;
+  --voltage-500: #a78bfa;
+  --voltage-230: #fbbf24;
+  --voltage-115: #22d3ee;
+  --voltage-46: #f472b6;
+  --voltage-other: #94a3b8;
+  --map-marker-high: #ebb747;
+  --map-marker-medium: #2563eb;
+  --map-marker-low: #dc2626;
+  --map-utility-dominion: #c2410c;
+  --map-utility-georgia: #1d4ed8;
+  --map-muted-state-fill: #252b36;
+  --map-muted-state-stroke: #3d4654;
+  --map-zero-fill: #1a2e22;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.28);
 }
@@ -71,3 +104,106 @@ body {
     zoom: 0.9;
   }
 }
+
+/* Filter select portal menu (KBR-Internship FilterSelect) */
+.filter-select-portal {
+  position: fixed;
+  z-index: 250;
+  pointer-events: auto;
+}
+
+.filter-select-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.28rem;
+  scrollbar-width: thin;
+}
+
+.filter-select-panel--grid {
+  padding: 0.35rem 0.4rem;
+}
+
+.filter-select-option--grid-span {
+  grid-column: 1 / -1;
+}
+
+.filter-select-panel--grid .filter-select-option:not(.filter-select-option--grid-span) {
+  justify-content: center;
+  text-align: center;
+}
+
+.filter-select-panel::-webkit-scrollbar {
+  width: 8px;
+}
+
+.filter-select-panel::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+.filter-select-option {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  padding: 0.4rem 0.55rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.filter-select-option:hover,
+.filter-select-option:focus-visible {
+  background: var(--surface-hover);
+  outline: none;
+}
+
+.filter-select-option--active {
+  background: var(--surface-hover);
+}
+
+.filter-select-option:hover.filter-select-option--active,
+.filter-select-option:focus-visible.filter-select-option--active {
+  background: var(--surface-hover);
+}
+
+.filter-select-option[aria-selected="true"] {
+  background: var(--accent-light);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.filter-select-option[aria-selected="true"].filter-select-option--active {
+  background: color-mix(in srgb, var(--accent-light) 88%, var(--accent) 12%);
+  color: var(--accent-text);
+}
+
+.filter-select-option--disabled {
+  color: var(--text-muted);
+  cursor: default;
+  opacity: 0.55;
+}
+
+.filter-select-option--disabled:hover,
+.filter-select-option--disabled:focus-visible {
+  background: transparent;
+}
+
+.filter-select-option--disabled[aria-selected="true"] {
+  background: var(--surface-hover);
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+

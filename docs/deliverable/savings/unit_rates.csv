@@ -1,0 +1,8 @@
+rate,low,mid,high,rule,projects
+115 kV rebuild per mile,648148,1150000,1401600,n=6: min/median/max,"DESC_6809 E, DESC_6809 G, DESC_6810 A, DESC_6809 N, DESC_6852, DESC_6846 A"
+230 kV new_build per mile,1829802,3659604,5489406,n=1 (<3): low/high = mid -/+50%,DESC_06367 D - G
+230 kV rebuild per mile,750000,1669231,1930000,n=3: min/median/max,"DESC_06372 A, DESC_06810 F, DESC_6388 A"
+115 kV new_build per mile,2007682,7803571,8181818,n=3: min/median/max,"DESC_5392 A-C, DESC_0147 C, K, DESC_0147 B, J"
+46 kV rebuild per mile,602041,629648,666667,n=4: min/median/max,"DESC_6810 U, DESC_6810 J, DESC_6810 O, DESC_6810 T"
+station equipment per station,3982052,9898924,10833462,min/median/max,"DESC_6805 G, DESC_1060A, I, L, DESC_05004 P"
+new substation per station,5300000,11116933,23685000,"guide values; Dawson (DESC_6859, $93.5M) excluded as outlier","DESC_0167C-D, DESC_0139 M,N, DESC_06371 D, DESC_6853 B-F"

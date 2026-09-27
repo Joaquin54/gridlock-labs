@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { DataLoadGate, GridlockDataProvider } from "./data/GridlockDataContext";
 import AppShell from "./components/layout/AppShell";
 
 const Dashboard = lazy(() => import("./components/dashboard/Dashboard"));
@@ -20,17 +21,21 @@ export default function App() {
   const isDashboard = location.pathname === "/" || location.pathname === "/dashboard";
 
   return (
-    <AppShell flushMain={isDashboard}>
-      <Suspense fallback={<LoadingFallback />}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/upload" element={<PdfUploadPage />} />
-          <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Suspense>
-    </AppShell>
+    <GridlockDataProvider>
+      <AppShell flushMain={isDashboard}>
+        <Suspense fallback={<LoadingFallback />}>
+          <DataLoadGate>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/upload" element={<PdfUploadPage />} />
+              <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </DataLoadGate>
+        </Suspense>
+      </AppShell>
+    </GridlockDataProvider>
   );
 }
