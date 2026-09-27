@@ -1,14 +1,11 @@
-import type { ReviewQueuePoint } from "./geocode";
-
 export type UtilityKey = "dominion" | "georgia-power";
 
 export type WorkType =
-  | "Rebuild"
-  | "Construct / New"
-  | "Replace"
-  | "Reconductor"
-  | "Install"
-  | "Other";
+  | "rebuild"
+  | "construct/new"
+  | "replace"
+  | "reconductor"
+  | "install";
 
 export type ProjectEndpoint = {
   label: string | null;
@@ -28,6 +25,14 @@ export type GridlockProject = {
   inServiceDate: string | null;
   overlapCount: number;
   overlapProjectIds: string[];
+  description: string | null;
+  voltageKv: number | null;
+  lineMiles: number | null;
+  zone: string | null;
+  isBorder: boolean;
+  workTypeRaw: string | null;
+  located: boolean;
+  locationConfidence: "high" | "medium" | "low" | null;
 };
 
 export type ProjectOverlap = {
@@ -40,6 +45,9 @@ export type ProjectOverlap = {
   utilityB: string;
   projectIdB: string;
   projectNameB: string;
+  pairConfidence?: "high" | "medium" | "low";
+  borderline?: boolean;
+  sharedAssets?: string[];
 };
 
 export type SearchFilters = {
@@ -52,6 +60,4 @@ export type SearchFilters = {
   overlapsOnly: boolean;
 };
 
-export type CatalogSearchResult =
-  | { kind: "pilot"; project: GridlockProject }
-  | { kind: "queue"; point: ReviewQueuePoint };
+export type CatalogSearchResult = { kind: "pilot"; project: GridlockProject };

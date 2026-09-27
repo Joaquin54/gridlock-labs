@@ -6,19 +6,12 @@ import {
   utilityKeyFromQueueCode,
 } from "../types/geocode";
 import { getQueuePointCountyFips } from "./countyIndex";
-import type { SearchFilters, WorkType } from "../types/project";
-import queueSeed from "./review-queue.json";
-
-const points: ReviewQueuePoint[] = queueSeed.points as ReviewQueuePoint[];
+import type { GridlockProject, SearchFilters, WorkType } from "../types/project";
 
 const TASK_ORDER: GeocodeTask[] = ["FIND", "CHECK", "VERIFY", "CONFIRM"];
 const CONFIDENCE_ORDER: GeocodeConfidence[] = ["unlocated", "low", "medium", "high"];
 
-export function getAllReviewQueuePoints(): ReviewQueuePoint[] {
-  return points;
-}
-
-export function getMappableReviewPoints(): ReviewQueuePoint[] {
+export function getMappableReviewPoints(points: ReviewQueuePoint[]): ReviewQueuePoint[] {
   return points.filter(
     (p) => p.lat != null && p.lon != null && !Number.isNaN(p.lat) && !Number.isNaN(p.lon),
   );
@@ -36,7 +29,7 @@ export type GeocodeDashboardSummary = {
   byRegion: Array<{ region: string; count: number }>;
 };
 
-export function getGeocodeDashboardSummary(): GeocodeDashboardSummary {
+export function getGeocodeDashboardSummary(points: ReviewQueuePoint[]): GeocodeDashboardSummary {
   const byTask = Object.fromEntries(TASK_ORDER.map((t) => [t, 0])) as Record<GeocodeTask, number>;
   const byConfidence = Object.fromEntries(CONFIDENCE_ORDER.map((c) => [c, 0])) as Record<
     GeocodeConfidence,
@@ -50,7 +43,7 @@ export function getGeocodeDashboardSummary(): GeocodeDashboardSummary {
     regionCounts.set(p.region, (regionCounts.get(p.region) ?? 0) + 1);
   }
 
-  const withCoordinates = getMappableReviewPoints().length;
+  const withCoordinates = getMappableReviewPoints(points).length;
   const uniqueProjects = new Set(points.map((p) => `${p.utility}:${p.projectKey}:${p.projectName}`))
     .size;
 
@@ -69,8 +62,8 @@ export function getGeocodeDashboardSummary(): GeocodeDashboardSummary {
   };
 }
 
-export function getReviewQueueChartData() {
-  const summary = getGeocodeDashboardSummary();
+export function getReviewQueueChartData(points: ReviewQueuePoint[]) {
+  const summary = getGeocodeDashboardSummary(points);
   return {
     taskData: TASK_ORDER.map((task) => ({
       task,
@@ -103,8 +96,10 @@ export function getReviewQueueChartData() {
   };
 }
 
-/** Priority queue for dashboard table: FIND first, then low confidence. */
-export function getReviewQueuePrioritySample(limit = 12): ReviewQueuePoint[] {
+export function getReviewQueuePrioritySample(
+  points: ReviewQueuePoint[],
+  limit = 12,
+): ReviewQueuePoint[] {
   const rank = (p: ReviewQueuePoint): number => {
     const taskRank = TASK_ORDER.indexOf(p.task);
     const confRank = CONFIDENCE_ORDER.indexOf(p.confidence);
@@ -117,8 +112,43 @@ function stateForQueueUtility(utility: string): "GA" | "SC" {
   return utility === "DESC" ? "SC" : "GA";
 }
 
-/** Filter review-queue location points for search (full portfolio footprint). */
-export function searchReviewQueuePoints(filters: SearchFilters): ReviewQueuePoint[] {
+export function queuePointProjectId(point: ReviewQueuePoint): string {
+  const lastColon = point.id.lastIndexOf(":");
+  return lastColon > 0 ? point.id.slice(0, lastColon) : point.id;
+}
+
+export function queuePointsByProjectId(
+  points: ReviewQueuePoint[],
+): Map<string, ReviewQueuePoint[]> {
+  const map = new Map<string, ReviewQueuePoint[]>();
+  for (const point of points) {
+    const projectId = queuePointProjectId(point);
+    const list = map.get(projectId);
+    if (list) list.push(point);
+    else map.set(projectId, [point]);
+  }
+  return map;
+}
+
+export function queuePointSearchHaystack(point: ReviewQueuePoint): string {
+  return [
+    point.pointName,
+    point.projectName,
+    point.region,
+    regionLabel(point.region),
+    point.description,
+    point.task,
+    point.confidence,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function searchReviewQueuePoints(
+  points: ReviewQueuePoint[],
+  filters: SearchFilters,
+): ReviewQueuePoint[] {
   const q = filters.query.trim().toLowerCase();
   if (filters.overlapsOnly) return [];
 
@@ -149,10 +179,6 @@ export function searchReviewQueuePoints(filters: SearchFilters): ReviewQueuePoin
   });
 }
 
-/* ------------------------------------------------------------------ */
-/*  Portfolio analytics — mined from project names & descriptions     */
-/* ------------------------------------------------------------------ */
-
 export type VoltageClass = "500 kV" | "230 kV" | "115 kV" | "46 kV" | "Other";
 
 export const VOLTAGE_CLASS_DISPLAY_ORDER: readonly VoltageClass[] = [
@@ -168,8 +194,6 @@ export function voltageClassLegendSortKey(name: string): number {
   return idx === -1 ? VOLTAGE_CLASS_DISPLAY_ORDER.length : idx;
 }
 
-const VOLTAGE_RE = /(\d+)\s*[kK][vV]/g;
-
 function classifyVoltage(kv: number): VoltageClass {
   if (kv >= 500) return "500 kV";
   if (kv >= 230) return "230 kV";
@@ -178,18 +202,14 @@ function classifyVoltage(kv: number): VoltageClass {
   return "Other";
 }
 
-export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number; fill: string }> {
+export function getVoltageBreakdown(
+  projects: GridlockProject[],
+): Array<{ name: VoltageClass; count: number; fill: string; sliceValue?: number }> {
   const counts = new Map<VoltageClass, number>();
-  for (const p of points) {
-    const matches = p.projectName.matchAll(VOLTAGE_RE);
-    const seen = new Set<VoltageClass>();
-    for (const m of matches) {
-      const cls = classifyVoltage(Number(m[1]));
-      seen.add(cls);
-    }
-    for (const cls of seen) {
-      counts.set(cls, (counts.get(cls) ?? 0) + 1);
-    }
+  for (const p of projects) {
+    if (p.voltageKv == null) continue;
+    const cls = classifyVoltage(p.voltageKv);
+    counts.set(cls, (counts.get(cls) ?? 0) + 1);
   }
   const fills: Record<VoltageClass, string> = {
     "500 kV": "var(--voltage-500)",
@@ -223,60 +243,81 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
 }
 
 export const WORK_TYPE_FILTER_OPTIONS: readonly WorkType[] = [
-  "Rebuild",
-  "Construct / New",
-  "Replace",
-  "Reconductor",
-  "Install",
-  "Other",
+  "rebuild",
+  "construct/new",
+  "replace",
+  "reconductor",
+  "install",
 ];
 
-export function classifyWorkType(projectName: string, description?: string | null): WorkType {
+const LEGACY_WORK_TYPE_PARAM: Record<string, WorkType> = {
+  Rebuild: "rebuild",
+  "Construct / New": "construct/new",
+  Replace: "replace",
+  Reconductor: "reconductor",
+  Install: "install",
+};
+
+export function normalizeWorkTypeParam(raw: string | null): "" | WorkType {
+  if (!raw) return "";
+  if (raw === "other" || raw === "Other") return "";
+  if (WORK_TYPE_FILTER_OPTIONS.includes(raw as WorkType)) return raw as WorkType;
+  return LEGACY_WORK_TYPE_PARAM[raw] ?? "";
+}
+
+export function classifyWorkType(
+  projectName: string,
+  description?: string | null,
+): WorkType | null {
   const text = `${projectName} ${description ?? ""}`.toUpperCase();
-  if (text.includes("REBUILD")) return "Rebuild";
-  if (text.includes("CONSTRUCT") || text.includes("NEW ")) return "Construct / New";
-  if (text.includes("RECONDUCTOR")) return "Reconductor";
-  if (text.includes("INSTALL")) return "Install";
-  if (text.includes("REPLACE")) return "Replace";
-  return "Other";
+  if (text.includes("REBUILD")) return "rebuild";
+  if (text.includes("CONSTRUCT") || text.includes("NEW ")) return "construct/new";
+  if (text.includes("RECONDUCTOR")) return "reconductor";
+  if (text.includes("INSTALL")) return "install";
+  if (text.includes("REPLACE")) return "replace";
+  return null;
 }
 
-export function getWorkTypeBreakdown(): Array<{ name: WorkType; gpc: number; desc: number }> {
+/** Prefer name/description keywords; fall back to coarse API work_type when text is ambiguous. */
+export function workTypeForProject(p: GridlockProject): WorkType | null {
+  const fromText = classifyWorkType(p.name, p.description);
+  if (fromText) return fromText;
+  if (p.workTypeRaw === "rebuild") return "rebuild";
+  if (p.workTypeRaw === "new_build") return "construct/new";
+  if (p.workTypeRaw === "station_equipment") return "install";
+  return null;
+}
+
+export function getWorkTypeBreakdown(
+  projects: GridlockProject[],
+): Array<{ name: WorkType; gpc: number; desc: number }> {
   const counts: Record<WorkType, { gpc: number; desc: number }> = {
-    Rebuild: { gpc: 0, desc: 0 },
-    "Construct / New": { gpc: 0, desc: 0 },
-    Replace: { gpc: 0, desc: 0 },
-    Reconductor: { gpc: 0, desc: 0 },
-    Install: { gpc: 0, desc: 0 },
-    Other: { gpc: 0, desc: 0 },
+    rebuild: { gpc: 0, desc: 0 },
+    "construct/new": { gpc: 0, desc: 0 },
+    replace: { gpc: 0, desc: 0 },
+    reconductor: { gpc: 0, desc: 0 },
+    install: { gpc: 0, desc: 0 },
   };
-  const seenGpc = new Set<string>();
-  const seenDesc = new Set<string>();
-  for (const p of points) {
-    if (p.utility === "GPC") {
-      if (seenGpc.has(p.projectKey)) continue;
-      seenGpc.add(p.projectKey);
-      counts[classifyWorkType(p.projectName, p.description)].gpc += 1;
-    } else if (p.utility === "DESC") {
-      if (seenDesc.has(p.projectKey)) continue;
-      seenDesc.add(p.projectKey);
-      counts[classifyWorkType(p.projectName, p.description)].desc += 1;
-    }
+  for (const p of projects) {
+    const wt = workTypeForProject(p);
+    if (!wt) continue;
+    if (p.utilityKey === "georgia-power") counts[wt].gpc += 1;
+    else counts[wt].desc += 1;
   }
-  return (Object.entries(counts) as [WorkType, { gpc: number; desc: number }][])
-    .filter(([, v]) => v.gpc + v.desc > 0)
-    .sort((a, b) => b[1].gpc + b[1].desc - (a[1].gpc + a[1].desc))
-    .map(([name, { gpc, desc }]) => ({ name, gpc, desc }));
+  return WORK_TYPE_FILTER_OPTIONS.map((name) => ({
+    name,
+    gpc: counts[name].gpc,
+    desc: counts[name].desc,
+  }));
 }
 
-export function getBorderBreakdown(): Array<{ name: string; value: number; fill: string }> {
+export function getBorderBreakdown(
+  projects: GridlockProject[],
+): Array<{ name: string; value: number; fill: string }> {
   let border = 0;
   let interior = 0;
-  const seenProjects = new Set<string>();
-  for (const p of points) {
-    if (seenProjects.has(p.projectKey)) continue;
-    seenProjects.add(p.projectKey);
-    if (p.isBorder) border++;
+  for (const p of projects) {
+    if (p.isBorder || p.zone?.toLowerCase().includes("border")) border++;
     else interior++;
   }
   return [
@@ -285,7 +326,9 @@ export function getBorderBreakdown(): Array<{ name: string; value: number; fill:
   ];
 }
 
-export function getLineMilesBuckets(): Array<{ bucket: string; count: number }> {
+export function getLineMilesBuckets(
+  projects: GridlockProject[],
+): Array<{ bucket: string; count: number }> {
   const buckets = [
     { label: "< 1 mi", min: 0, max: 1 },
     { label: "1–5 mi", min: 1, max: 5 },
@@ -295,41 +338,41 @@ export function getLineMilesBuckets(): Array<{ bucket: string; count: number }> 
     { label: "50+ mi", min: 50, max: Infinity },
   ];
   const counts = buckets.map(() => 0);
-  for (const p of points) {
-    if (p.miles == null || p.miles <= 0) continue;
-    const idx = buckets.findIndex((b) => {
-      const m = p.miles as number;
-      return m >= b.min && m < b.max;
-    });
+  for (const p of projects) {
+    const miles = p.lineMiles;
+    if (miles == null || miles <= 0) continue;
+    const idx = buckets.findIndex((b) => miles >= b.min && miles < b.max);
     if (idx >= 0) counts[idx]++;
   }
   return buckets.map((b, i) => ({ bucket: b.label, count: counts[i] }));
 }
 
-export function getUniqueProjectCountsByUtility(): { gpc: number; desc: number } {
-  const seen = new Set<string>();
+export function getUniqueProjectCountsByUtility(
+  projects: GridlockProject[],
+): { gpc: number; desc: number } {
   let gpc = 0;
   let desc = 0;
-  for (const p of points) {
-    const key = `${p.utility}:${p.projectKey}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    if (p.utility === "GPC") gpc++;
-    else if (p.utility === "DESC") desc++;
+  for (const p of projects) {
+    if (p.utilityKey === "georgia-power") gpc++;
+    else desc++;
   }
   return { gpc, desc };
 }
 
-export function getUtilitySplit(): Array<{ name: string; value: number; fill: string }> {
+export function getUtilitySplit(
+  points: ReviewQueuePoint[],
+): Array<{ name: string; value: number; fill: string }> {
   const gpc = points.filter((p) => p.utility === "GPC").length;
   const desc = points.filter((p) => p.utility === "DESC").length;
   return [
-    { name: "Georgia Power", value: gpc, fill: "var(--georgia)" },
-    { name: "Dominion (SC)", value: desc, fill: "var(--dominion)" },
+    { name: "Georgia Power", value: gpc, fill: "var(--map-utility-georgia)" },
+    { name: "Dominion (SC)", value: desc, fill: "var(--map-utility-dominion)" },
   ];
 }
 
-export function getRegionByUtility(): Array<{
+export function getRegionByUtility(
+  points: ReviewQueuePoint[],
+): Array<{
   region: string;
   gpc: number;
   desc: number;

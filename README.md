@@ -31,7 +31,7 @@ ShellHacks 2026 project. Gridlock maps transmission projects from multiple utili
 
 ## Current status
 
-- **Frontend:** working dashboard, search page, and project detail page. Data is loaded from the static `frontend/src/data/seed.json` through `frontend/src/data/repository.ts`.
+- **Frontend:** working dashboard, search page, and project detail page. Data is loaded from the backend API (`VITE_API_BASE_URL`) via `frontend/src/data/GridlockDataContext.tsx`.
 - **Backend:** Hono API over the Drizzle schema — projects, live overlaps, stats, manual location edits, and the CSV / GeoJSON deliverables. See [Backend API](#backend-api). Scalar is installed but not wired up.
 - **Database:** the Drizzle schema (`backend/src/db/schema.ts`) is final and the Tiger Data tables are loaded. Without `DATABASE_URL` the backend runs on an in-memory PGlite copy with fixture data instead.
 - **Containers:** `docker compose up --build` runs the whole app locally — see [Run locally with Docker](#run-locally-with-docker).
@@ -89,22 +89,23 @@ There is **no local Postgres container**: Tiger is the database and offline mode
 
 - `frontend/src/api/documents.ts` POSTs to `/api/documents/upload`, which the backend
   does not implement. Unused by the current pages.
-- The frontend still reads `frontend/src/data/seed.json` and does not call the API yet.
+- Set `VITE_API_BASE_URL` when running the frontend outside Docker (`cp frontend/.env.example frontend/.env`).
 - `backend/bun.lock` and `frontend/bun.lock` are gitignored, so a fresh clone has no
   lockfile for the `--frozen-lockfile` install in either Dockerfile.
 
 ### Running without Docker (fallback)
 
 ```bash
-# Frontend
-cd frontend
-bun install
-bun run dev          # http://localhost:5173
-
-# Backend
+# Backend (start first — the UI depends on it)
 cd backend
 bun install
 bun run dev          # http://localhost:3000
+
+# Frontend
+cd frontend
+cp .env.example .env
+bun install
+bun run dev          # http://localhost:5173
 ```
 
 ## Environment variables

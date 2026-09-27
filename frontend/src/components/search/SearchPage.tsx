@@ -5,14 +5,12 @@ import {
   getCountyOptionsForState,
   isValidCountyFipsForState,
 } from "../../data/countyIndex";
-import { getAllReviewQueuePoints, WORK_TYPE_FILTER_OPTIONS } from "../../data/geocodeRepository";
-import { getAllProjects, searchCatalog } from "../../data/repository";
-import { regionLabel, utilityKeyFromQueueCode } from "../../types/geocode";
+import { useGridlockData } from "../../data/GridlockDataContext";
+import { normalizeWorkTypeParam, WORK_TYPE_FILTER_OPTIONS } from "../../data/geocodeRepository";
+import { projectDetailPath } from "../../utils/routes";
 import type { SearchFilters, UtilityKey, WorkType } from "../../types/project";
 import { cn } from "../../utils/cn";
-import { formatDateLabel, formatMiles } from "../../utils/format";
-import ConfidenceBadge from "../shared/ConfidenceBadge";
-import TaskBadge from "../shared/TaskBadge";
+import { formatDateLabel } from "../../utils/format";
 import UtilityBadge from "../shared/UtilityBadge";
 import FilterSelect from "./FilterSelect";
 
@@ -24,11 +22,6 @@ const CLS_BUTTON_PRIMARY =
 
 const CLS_BUTTON_CLEAR =
   "box-border min-h-[2.5rem] min-w-[4rem] cursor-pointer whitespace-nowrap rounded-sm border border-red-200/90 bg-red-50 px-4 font-sans text-[13px] font-medium text-red-700 transition-all duration-150 hover:border-red-300 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/45 dark:text-red-300 dark:hover:border-red-800/70 dark:hover:bg-red-950/70";
-
-function parseWorkType(raw: string | null): "" | WorkType {
-  if (!raw) return "";
-  return WORK_TYPE_FILTER_OPTIONS.includes(raw as WorkType) ? (raw as WorkType) : "";
-}
 
 function parseCountyFips(raw: string | null, state: "" | "GA" | "SC"): string {
   const county = raw?.trim() ?? "";
@@ -50,7 +43,7 @@ function parseFilters(params: URLSearchParams): SearchFilters {
     utility: utility === "dominion" || utility === "georgia-power" ? utility : "",
     state: stateParsed,
     county: parseCountyFips(params.get("county"), stateParsed),
-    workType: parseWorkType(params.get("workType")),
+    workType: normalizeWorkTypeParam(params.get("workType")),
     overlapsOnly: params.get("overlaps") === "1",
   };
 }
@@ -87,6 +80,7 @@ function FilterField({
 
 export default function SearchPage() {
   const navigate = useNavigate();
+  const { projects, queuePoints, search } = useGridlockData();
   const [searchParams, setSearchParams] = useSearchParams();
   const applied = useMemo(() => parseFilters(searchParams), [searchParams]);
 
@@ -98,10 +92,10 @@ export default function SearchPage() {
   }, [applied.query]);
 
   useEffect(() => {
-    void ensureCountyIndex(getAllReviewQueuePoints(), getAllProjects()).then(() => {
+    void ensureCountyIndex(queuePoints, projects).then(() => {
       setCountyIndexReady(true);
     });
-  }, []);
+  }, [queuePoints, projects]);
 
   const countyOptions = useMemo(
     () => (countyIndexReady ? getCountyOptionsForState(applied.state) : []),
@@ -119,7 +113,7 @@ export default function SearchPage() {
     [countyOptions],
   );
 
-  const results = useMemo(() => searchCatalog(applied), [applied]);
+  const results = useMemo(() => search(applied), [search, applied]);
 
   const applyFilters = (patch: Partial<SearchFilters>) => {
     const next: SearchFilters = { ...applied, ...patch };
@@ -143,8 +137,8 @@ export default function SearchPage() {
           Search projects
         </h1>
         <p className="m-0 text-[0.8125rem] leading-snug text-text-secondary">
-          Search pilot overlap projects and geocode review-queue location points by name, utility,
-          state, work type, region, or overlap status.
+          Search transmission projects by name, ID, location point, utility, state, work type,
+          county, or overlap status.
         </p>
       </div>
 
@@ -275,86 +269,39 @@ export default function SearchPage() {
       ) : (
         <div className="mt-1.5 flex flex-col gap-px overflow-hidden rounded-lg border border-border bg-border">
           {results.map((item) => {
-            if (item.kind === "pilot") {
-              const p = item.project;
-              return (
-                <button
-                  key={`pilot-${p.id}`}
-                  type="button"
-                  onClick={() => navigate(`/projects/${p.id}`)}
-                  className="group cursor-pointer border-none bg-surface px-[1.25rem] py-[0.6rem] text-left transition-[background] duration-100 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]"
-                >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <h3 className="m-0 min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-[1.4] text-text-primary group-hover:text-accent-hover">
-                      {p.name}
-                    </h3>
-                    <span className="shrink-0 font-mono text-[0.6875rem] text-text-muted">
-                      {p.id}
-                    </span>
-                  </div>
-                  <div className="mt-[0.4rem] flex flex-wrap items-center gap-1.5 text-[12px] leading-none text-text-secondary">
-                    <UtilityBadge utilityKey={p.utilityKey} />
-                    <span className="rounded-full bg-accent/10 px-[0.42rem] py-[0.12rem] text-[10px] font-medium text-accent-text">
-                      Pilot overlap
-                    </span>
-                    <span>{p.state}</span>
-                    <span className="text-border-strong" aria-hidden>
-                      ·
-                    </span>
-                    <span>In service {formatDateLabel(p.inServiceDate)}</span>
-                    {p.overlapCount > 0 ? (
-                      <span className="ml-auto inline-block rounded-full bg-green-light px-[0.42rem] py-[0.12rem] text-[10px] font-medium text-green">
-                        {p.overlapCount} overlap{p.overlapCount === 1 ? "" : "s"}
-                      </span>
-                    ) : null}
-                  </div>
-                </button>
-              );
-            }
-
-            const p = item.point;
-            const utilityKey = utilityKeyFromQueueCode(p.utility);
-            const state = p.utility === "DESC" ? "SC" : "GA";
-            const located = p.lat != null && p.lon != null && !Number.isNaN(p.lat);
-
+            const p = item.project;
             return (
-              <div key={`queue-${p.id}`} className="bg-surface px-[1.25rem] py-[0.6rem] text-left">
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => navigate(projectDetailPath(p.id))}
+                className="group cursor-pointer border-none bg-surface px-[1.25rem] py-[0.6rem] text-left transition-[background] duration-100 hover:bg-surface-hover focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-[-2px]"
+              >
                 <div className="flex items-baseline justify-between gap-4">
-                  <h3 className="m-0 min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-[1.4] text-text-primary">
-                    {p.pointName}
+                  <h3 className="m-0 min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-[1.4] text-text-primary group-hover:text-accent-hover">
+                    {p.name}
                   </h3>
                   <span className="shrink-0 font-mono text-[0.6875rem] text-text-muted">
                     {p.id}
                   </span>
                 </div>
-                <p className="m-0 mt-1 truncate text-[12px] text-text-secondary">{p.projectName}</p>
                 <div className="mt-[0.4rem] flex flex-wrap items-center gap-1.5 text-[12px] leading-none text-text-secondary">
-                  <UtilityBadge utilityKey={utilityKey} />
-                  <span>{state}</span>
+                  <UtilityBadge utilityKey={p.utilityKey} />
+                  <span className="rounded-full bg-accent/10 px-[0.42rem] py-[0.12rem] text-[10px] font-medium text-accent-text">
+                    Pilot overlap
+                  </span>
+                  <span>{p.state}</span>
                   <span className="text-border-strong" aria-hidden>
                     ·
                   </span>
-                  <span>{regionLabel(p.region)}</span>
-                  {p.miles != null ? (
-                    <>
-                      <span className="text-border-strong" aria-hidden>
-                        ·
-                      </span>
-                      <span>{formatMiles(p.miles)}</span>
-                    </>
+                  <span>In service {formatDateLabel(p.inServiceDate)}</span>
+                  {p.overlapCount > 0 ? (
+                    <span className="ml-auto inline-block rounded-full bg-green-light px-[0.42rem] py-[0.12rem] text-[10px] font-medium text-green">
+                      {p.overlapCount} overlap{p.overlapCount === 1 ? "" : "s"}
+                    </span>
                   ) : null}
-                  <TaskBadge task={p.task} />
-                  <ConfidenceBadge confidence={p.confidence} />
-                  <span
-                    className={cn(
-                      "ml-auto text-[10px] font-medium",
-                      located ? "text-green" : "text-text-muted",
-                    )}
-                  >
-                    {located ? "On map" : "Coordinates pending"}
-                  </span>
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
