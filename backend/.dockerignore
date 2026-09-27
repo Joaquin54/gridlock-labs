@@ -1,0 +1,10 @@
+node_modules
+test
+scripts
+db
+drizzle
+.env
+.env.*
+!.env-example
+.git
+.DS_Store
