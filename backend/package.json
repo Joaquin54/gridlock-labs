@@ -3,7 +3,8 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "DATABASE_URL= bun test"
+    "test": "DATABASE_URL= bun test",
+    "build-savings": "bun scripts/build-savings.ts"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
