@@ -2,7 +2,8 @@ import { type SQL, sql } from 'drizzle-orm'
 import type { PgDatabase } from 'drizzle-orm/pg-core'
 import { FIXTURE_POINTS, FIXTURE_PROJECTS } from './fixture'
 import * as schema from './schema'
-import { projectPoints, projects } from './schema'
+import { buildPoints, pointId } from '../lib/points'
+import { points, projectPoints, projects } from './schema'
 
 export type Database = PgDatabase<any, any, any>
 
@@ -41,8 +42,12 @@ export async function createPgliteDb(): Promise<Database> {
 
 /** Inserts the fixture. Exported so tests can build an empty DB instead. */
 export async function seedFixture(db: Database): Promise<void> {
+  // point_id is derived, exactly as the loader derives it, so the fixture exercises
+  // the join rather than hard-coding a second copy of the rule.
+  const linked = FIXTURE_POINTS.map((row) => ({ ...row, pointId: pointId(row.lat, row.lon) }))
   await db.insert(projects).values(FIXTURE_PROJECTS)
-  await db.insert(projectPoints).values(FIXTURE_POINTS)
+  await db.insert(points).values(buildPoints(linked))
+  await db.insert(projectPoints).values(linked)
 }
 
 export async function createDb(): Promise<{ db: Database; mode: DbMode }> {

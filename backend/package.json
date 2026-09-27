@@ -3,7 +3,7 @@
   "scripts": {
     "dev": "bun run --hot src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "DATABASE_URL= bun test"
   },
   "dependencies": {
     "@hono/zod-validator": "^0.9.1",
@@ -18,6 +18,7 @@
     "@biomejs/biome": "^2.5.14",
     "@electric-sql/pglite": "^0.5.8",
     "@types/bun": "latest",
+    "csv-parse": "^7.0.3",
     "drizzle-kit": "^0.31.11",
     "typescript": "^7.0.2"
   }

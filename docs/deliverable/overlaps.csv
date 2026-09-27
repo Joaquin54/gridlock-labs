@@ -1,0 +1,78 @@
+overlap_id,distance_mi,time_gap (day),utility_a,project_id_a,project_name_a,utility_b,project_id_b,project_name_b,confidence_a,confidence_b
+OVL_1,2.33,578,Dominion Energy South Carolina,DESC_6810 O,Urquhart – Aiken PSA 46 kV: Rebuild,Georgia Power,GPC_16007,FENWICK STREET - SAND BAR FERRY 115KV (RECONDUCTOR/REBUILD),verified,verified
+OVL_2,3.87,3074,Dominion Energy South Carolina,DESC_6810 A,Hooks - Thurmond 115kV Tie: Rebuild,Georgia Power,GPC_20793,EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD,verified,medium
+OVL_3,3.87,3074,Dominion Energy South Carolina,DESC_6810 A,Hooks - Thurmond 115kV Tie: Rebuild,Georgia Power,GPC_20794,EVANS PRIMARY - THURMOND DAM (USA) #6 115KV REBUILD,verified,verified
+OVL_4,4.23,152,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20277,SAV: MCINTOSH - PURRYSBURG 230KV REACTORS,verified,verified
+OVL_5,4.80,3074,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_20793,EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD,verified,medium
+OVL_6,4.80,3074,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_20794,EVANS PRIMARY - THURMOND DAM (USA) #6 115KV REBUILD,verified,verified
+OVL_7,4.80,2709,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_20793,EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD,verified,medium
+OVL_8,4.80,2709,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_20794,EVANS PRIMARY - THURMOND DAM (USA) #6 115KV REBUILD,verified,verified
+OVL_9,7.06,517,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20277,SAV: MCINTOSH - PURRYSBURG 230KV REACTORS,verified,verified
+OVL_10,7.46,517,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20065,SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD,verified,verified
+OVL_11,8.18,152,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20277,SAV: MCINTOSH - PURRYSBURG 230KV REACTORS,low,verified
+OVL_12,8.31,517,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20065,SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD,low,verified
+OVL_13,8.92,517,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20785,SAV: GOSHEN (SAV) - KRAFT 115KV LINE REBUILD,low,verified
+OVL_14,9.65,72,Dominion Energy South Carolina,DESC_6852,Urquhart – Toolebeck 115kV line: Rebuild,Georgia Power,GPC_16007,FENWICK STREET - SAND BAR FERRY 115KV (RECONDUCTOR/REBUILD),verified,verified
+OVL_15,9.71,882,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20065,SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD,verified,verified
+OVL_16,10.08,1248,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20989,SAV: RICE HOPE NEW AUTO TRANSFORMER,low,verified
+OVL_17,10.43,883,Dominion Energy South Carolina,DESC_6810 O,Urquhart – Aiken PSA 46 kV: Rebuild,Georgia Power,GPC_21116,GOSHEN AREA STRATEGIC SOLUTION,verified,verified
+OVL_18,11.89,517,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20785,SAV: GOSHEN (SAV) - KRAFT 115KV LINE REBUILD,verified,verified
+OVL_19,12.28,1248,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20989,SAV: RICE HOPE NEW AUTO TRANSFORMER,verified,verified
+OVL_20,12.77,882,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20785,SAV: GOSHEN (SAV) - KRAFT 115KV LINE REBUILD,verified,verified
+OVL_21,12.94,3652,Dominion Energy South Carolina,DESC_6810 A,Hooks - Thurmond 115kV Tie: Rebuild,Georgia Power,GPC_17993,EVANS PRIMARY - THOMSON PRIMARY 115KV REBUILD,verified,high
+OVL_22,13.12,365,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20277,SAV: MCINTOSH - PURRYSBURG 230KV REACTORS,verified,verified
+OVL_23,13.38,3652,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_17993,EVANS PRIMARY - THOMSON PRIMARY 115KV REBUILD,verified,high
+OVL_24,13.38,3287,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_17993,EVANS PRIMARY - THOMSON PRIMARY 115KV REBUILD,verified,high
+OVL_25,13.55,1613,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20989,SAV: RICE HOPE NEW AUTO TRANSFORMER,verified,verified
+OVL_26,14.18,517,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_16007,FENWICK STREET - SAND BAR FERRY 115KV (RECONDUCTOR/REBUILD),verified,verified
+OVL_27,14.18,152,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_16007,FENWICK STREET - SAND BAR FERRY 115KV (RECONDUCTOR/REBUILD),verified,verified
+OVL_28,14.63,730,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20065,SAV: GOSHEN (SAV) - MCINTOSH 115KV LINE REBUILD,verified,verified
+OVL_29,15.01,730,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20785,SAV: GOSHEN (SAV) - KRAFT 115KV LINE REBUILD,verified,verified
+OVL_30,15.25,883,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20783,SAV: COLEMAN - DEAN FOREST 115KV LINE REBUILD,low,verified
+OVL_31,15.37,152,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20066,SAV: BOULEVARD - DEPTFORD 115KV RECONDUCTOR,low,verified
+OVL_32,15.83,213,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20067,SAV: DEPTFORD - MAGNOLIA 115KV RECONDUCTOR,low,verified
+OVL_33,16.41,1461,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20989,SAV: RICE HOPE NEW AUTO TRANSFORMER,verified,verified
+OVL_34,16.43,1389,Dominion Energy South Carolina,DESC_6852,Urquhart – Toolebeck 115kV line: Rebuild,Georgia Power,GPC_21116,GOSHEN AREA STRATEGIC SOLUTION,verified,verified
+OVL_35,17.08,1248,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_21006,SAV: BOULEVARD - MAGNOLIA 115 KV LINE REBUILD,low,verified
+OVL_36,17.32,2344,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20784,SAV: COLEMAN - MELDRIM 115KV LINE REBUILD,low,medium
+OVL_37,18.16,0,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20067,SAV: DEPTFORD - MAGNOLIA 115KV RECONDUCTOR,verified,verified
+OVL_38,18.35,365,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20066,SAV: BOULEVARD - DEPTFORD 115KV RECONDUCTOR,verified,verified
+OVL_39,18.43,883,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20407,SAV: MAGNOLIA - TRUMAN PARKWAY 115KV REBUILD,low,verified
+OVL_40,18.57,1248,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_21023,SAV: DEAN FOREST - LITTLE OGEECHEE 230 KV REBUILD,low,verified
+OVL_41,18.77,1979,Dominion Energy South Carolina,DESC_6810 O,Urquhart – Aiken PSA 46 kV: Rebuild,Georgia Power,GPC_20793,EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD,verified,medium
+OVL_42,18.77,1979,Dominion Energy South Carolina,DESC_6810 O,Urquhart – Aiken PSA 46 kV: Rebuild,Georgia Power,GPC_20794,EVANS PRIMARY - THURMOND DAM (USA) #6 115KV REBUILD,verified,verified
+OVL_43,19.04,883,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20783,SAV: COLEMAN - DEAN FOREST 115KV LINE REBUILD,verified,verified
+OVL_44,19.43,517,Dominion Energy South Carolina,DESC_6810 A,Hooks - Thurmond 115kV Tie: Rebuild,Georgia Power,GPC_16007,FENWICK STREET - SAND BAR FERRY 115KV (RECONDUCTOR/REBUILD),verified,verified
+OVL_45,19.54,1248,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20783,SAV: COLEMAN - DEAN FOREST 115KV LINE REBUILD,verified,verified
+OVL_46,19.73,2344,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20784,SAV: COLEMAN - MELDRIM 115KV LINE REBUILD,verified,medium
+OVL_47,19.80,3074,Dominion Energy South Carolina,DESC_6810 A,Hooks - Thurmond 115kV Tie: Rebuild,Georgia Power,GPC_14222,THOMSON PRIMARY 230/115KV SECOND TRANSFORMER,verified,verified
+OVL_48,19.84,517,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20066,SAV: BOULEVARD - DEPTFORD 115KV RECONDUCTOR,verified,verified
+OVL_49,20.13,2709,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20796,SAV: MELDRIM BANK D REPLACEMENT,low,verified
+OVL_50,20.22,152,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20067,SAV: DEPTFORD - MAGNOLIA 115KV RECONDUCTOR,verified,verified
+OVL_51,20.22,1461,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_21006,SAV: BOULEVARD - MAGNOLIA 115 KV LINE REBUILD,verified,verified
+OVL_52,20.32,1096,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20783,SAV: COLEMAN - DEAN FOREST 115KV LINE REBUILD,verified,verified
+OVL_53,20.36,152,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20066,SAV: BOULEVARD - DEPTFORD 115KV RECONDUCTOR,verified,verified
+OVL_54,20.88,1096,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20407,SAV: MAGNOLIA - TRUMAN PARKWAY 115KV REBUILD,verified,verified
+OVL_55,20.88,1978,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_21116,GOSHEN AREA STRATEGIC SOLUTION,verified,verified
+OVL_56,20.88,1613,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_21116,GOSHEN AREA STRATEGIC SOLUTION,verified,verified
+OVL_57,20.98,213,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20067,SAV: DEPTFORD - MAGNOLIA 115KV RECONDUCTOR,verified,verified
+OVL_58,21.01,2709,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20784,SAV: COLEMAN - MELDRIM 115KV LINE REBUILD,verified,medium
+OVL_59,21.02,3074,Dominion Energy South Carolina,DESC_6809 E,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV Rebuilds,Georgia Power,GPC_14222,THOMSON PRIMARY 230/115KV SECOND TRANSFORMER,verified,verified
+OVL_60,21.02,2709,Dominion Energy South Carolina,DESC_6809 G,Stevens Creek - Hooks 115kV/LR Plumb Branch 46kV,Georgia Power,GPC_14222,THOMSON PRIMARY 230/115KV SECOND TRANSFORMER,verified,verified
+OVL_61,21.56,1613,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_21006,SAV: BOULEVARD - MAGNOLIA 115 KV LINE REBUILD,verified,verified
+OVL_62,21.59,2709,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20796,SAV: MELDRIM BANK D REPLACEMENT,verified,verified
+OVL_63,21.82,0,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_17075,SAV: LITTLE OGEECHEE 230- 115KV: RELAY MODERNIZATION,low,verified
+OVL_64,21.82,3074,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_20787,SAV: LITTLE OGEECHEE 230/115KV BANK REPLACEMENT,low,verified
+OVL_65,21.96,1248,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_21006,SAV: BOULEVARD - MAGNOLIA 115 KV LINE REBUILD,verified,verified
+OVL_66,22.15,2557,Dominion Energy South Carolina,DESC_6810 O,Urquhart – Aiken PSA 46 kV: Rebuild,Georgia Power,GPC_17993,EVANS PRIMARY - THOMSON PRIMARY 115KV REBUILD,verified,high
+OVL_67,22.45,152,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_19966,SAV: CC - BIG OGEECHEE 500/230KV (CC NETWORK IMPROVEMENTS),low,verified
+OVL_68,22.55,1248,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_21023,SAV: DEAN FOREST - LITTLE OGEECHEE 230 KV REBUILD,verified,verified
+OVL_69,22.86,1248,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20407,SAV: MAGNOLIA - TRUMAN PARKWAY 115KV REBUILD,verified,verified
+OVL_70,22.94,1613,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_21023,SAV: DEAN FOREST - LITTLE OGEECHEE 230 KV REBUILD,verified,verified
+OVL_71,23.26,1461,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_21023,SAV: DEAN FOREST - LITTLE OGEECHEE 230 KV REBUILD,verified,verified
+OVL_72,23.31,3074,Dominion Energy South Carolina,"DESC_0139 M,N","Okatie 230-115kV Substation, Jasper – Yemassee 230kV #1 Fold-in",Georgia Power,GPC_20796,SAV: MELDRIM BANK D REPLACEMENT,verified,verified
+OVL_73,23.33,2557,Dominion Energy South Carolina,DESC_6808 S,Okatie-Bluffton 115kV: Rebuild,Georgia Power,GPC_20784,SAV: COLEMAN - MELDRIM 115KV LINE REBUILD,verified,medium
+OVL_74,23.51,883,Dominion Energy South Carolina,DESC_06367 D - G,Jasper – Okatie 230 kV #2: Construct,Georgia Power,GPC_20407,SAV: MAGNOLIA - TRUMAN PARKWAY 115KV REBUILD,verified,verified
+OVL_75,24.12,2485,Dominion Energy South Carolina,DESC_6852,Urquhart – Toolebeck 115kV line: Rebuild,Georgia Power,GPC_20793,EVANS PRIMARY - THURMOND DAM (USA) #5 115KV REBUILD,verified,medium
+OVL_76,24.12,2485,Dominion Energy South Carolina,DESC_6852,Urquhart – Toolebeck 115kV line: Rebuild,Georgia Power,GPC_20794,EVANS PRIMARY - THURMOND DAM (USA) #6 115KV REBUILD,verified,verified
+OVL_77,24.93,250,Dominion Energy South Carolina,"DESC_06367 A - C, H",Riverport Tap: Construct Tap,Georgia Power,GPC_19523,SAV: CC - HYUNDAI MOTORS SAVANNAH AKA. PROJECT EA,low,verified

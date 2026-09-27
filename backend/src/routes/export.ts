@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { db } from '../db'
 import type { Utility } from '../db/schema'
 import { toCsv } from '../lib/csv'
+import { overlapTableCsv, projectTableCsv } from '../lib/deliverable'
 import {
   OVERLAP_HEADERS,
   OVERRIDE_HEADERS,
@@ -53,6 +54,17 @@ exports.get('/export/location_overrides.csv', async () => {
   const overrides = await findManualOverrides(db)
   return csvResponse('location_overrides.csv', toCsv(OVERRIDE_HEADERS, overrides.map(overrideRow)))
 })
+
+// The challenge deliverable, straight from the two template-shaped views. Same
+// formatter as scripts/export-deliverables.ts, so the download and the checked-in
+// docs/deliverable/ files are identical.
+exports.get('/export/overlap-table.csv', async () =>
+  csvResponse('overlaps.csv', await overlapTableCsv(db)),
+)
+
+exports.get('/export/project-table.csv', async () =>
+  csvResponse('projects.csv', await projectTableCsv(db)),
+)
 
 async function geojson(utility: Utility, filename: string): Promise<Response> {
   const features = await findProjects(db, { utility })

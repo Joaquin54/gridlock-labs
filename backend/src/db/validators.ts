@@ -25,6 +25,7 @@ export const selectProjectSchema = createSelectSchema(projects, {
   status: () => z.enum(PROJECT_STATUSES),
   startDateSource: () => z.enum(START_DATE_SOURCES),
   milesSource: () => z.enum(MILES_SOURCES),
+  confidence: () => z.enum(CONFIDENCES),
 })
 
 export const insertProjectSchema = createInsertSchema(projects, {
@@ -35,6 +36,7 @@ export const insertProjectSchema = createInsertSchema(projects, {
   status: () => z.enum(PROJECT_STATUSES),
   startDateSource: () => z.enum(START_DATE_SOURCES),
   milesSource: () => z.enum(MILES_SOURCES),
+  confidence: () => z.enum(CONFIDENCES),
 })
 
 // --- project_points ------------------------------------------------------------
