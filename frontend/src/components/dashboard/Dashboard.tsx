@@ -41,7 +41,14 @@ import {
   CLS_DASHBOARD_PANEL_SHELL,
 } from "../../utils/chartStyles";
 import { cn } from "../../utils/cn";
-import { formatCount, formatDateLabel, formatMiles, formatPercent } from "../../utils/format";
+import {
+  formatCount,
+  formatDateLabel,
+  formatMiles,
+  formatPercent,
+  formatUsdCompact,
+  formatUsdRange,
+} from "../../utils/format";
 import StatCard from "../shared/StatCard";
 import RegionalProjectMap from "./RegionalProjectMap";
 
@@ -106,6 +113,8 @@ export default function Dashboard() {
     queuePoints: geocodePoints,
     dashboardSummary: summary,
     rankedOpportunities,
+    savingsTotals,
+    savingsSpotlight,
   } = useGridlockData();
   const geocodeSummary = getGeocodeDashboardSummary(geocodePoints);
 
@@ -154,12 +163,24 @@ export default function Dashboard() {
         </p> */}
       </div>
 
-      <div className="mb-3 grid grid-cols-2 gap-2 lg:grid-cols-4 min-[901px]:gap-3">
+      <div
+        className={cn(
+          "mb-3 grid grid-cols-2 gap-2 min-[901px]:gap-3",
+          savingsTotals ? "lg:grid-cols-5" : "lg:grid-cols-4",
+        )}
+      >
         <StatCard
           label="Project point overlaps"
           value={formatCount(summary.totalOverlaps)}
           accent="green"
         />
+        {savingsTotals && (
+          <StatCard
+            label="Coordination savings (headline)"
+            value={formatUsdCompact(savingsTotals.headline.mid)}
+            accent="green"
+          />
+        )}
         <StatCard label="Unique projects" value={formatCount(geocodeSummary.uniqueProjects)} />
         <StatCard label="Location points" value={formatCount(geocodeSummary.totalPoints)} />
         <StatCard
@@ -326,8 +347,10 @@ export default function Dashboard() {
         <div className={CLS_DASHBOARD_PANEL_HEADER}>Top coordination opportunities — ranked</div>
         <p className="m-0 mb-3 max-w-4xl text-[0.8125rem] leading-snug text-text-secondary">
           Each cross-utility overlap is scored 0–100 based on spatial proximity (closer = better ROW
-          sharing) and schedule alignment (overlapping timelines = joint construction savings). The
-          top-ranked pair includes a rough cost/impact estimate.
+          sharing) and schedule alignment (overlapping build windows).{" "}
+          {savingsTotals
+            ? `Sourced savings use the backend coordination model (S% × min(cost) × T × D) with a realistic headline total of ${formatUsdCompact(savingsTotals.headline.mid)} mid-case across non-overlapping pairs.`
+            : "Est. savings use a rough ROW heuristic until the savings API is available."}
         </p>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[0.8125rem]">
@@ -430,7 +453,19 @@ export default function Dashboard() {
                         : "text-text-primary",
                     )}
                   >
-                    ${(opp.costImpact.totalEstimatedSavings / 1_000_000).toFixed(2)}M
+                    {opp.costImpact.sourced ? (
+                      <span className="block">
+                        {formatUsdCompact(opp.costImpact.sourced.savingsMid)}
+                        <span className="block text-[0.625rem] font-normal text-text-muted">
+                          {formatUsdRange(
+                            opp.costImpact.sourced.savingsLow,
+                            opp.costImpact.sourced.savingsHigh,
+                          )}
+                        </span>
+                      </span>
+                    ) : (
+                      formatUsdCompact(opp.costImpact.totalEstimatedSavings)
+                    )}
                   </td>
                 </tr>
               ))}
@@ -440,18 +475,23 @@ export default function Dashboard() {
       </section>
 
       {/* ── #1 Opportunity deep dive ── */}
-      {rankedOpportunities[0] && (
+      {savingsSpotlight && (
         <section
           className={cn(
             CLS_DASHBOARD_PANEL_SHELL,
             "mt-[0.85rem] border-green/40 bg-green-light/20",
           )}
         >
-          <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "flex items-center gap-2")}>
+          <div className={cn(CLS_DASHBOARD_PANEL_HEADER, "flex flex-wrap items-center gap-2")}>
             <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green font-mono text-[0.6875rem] font-bold text-white">
-              1
+              $
             </span>
-            Coordination spotlight — cost/impact estimate
+            Coordination spotlight — sourced cost/impact estimate
+            {savingsSpotlight.costImpact.sourced?.overlapId && (
+              <span className="font-mono text-[0.6875rem] font-normal text-text-muted">
+                {savingsSpotlight.costImpact.sourced.overlapId}
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.8fr]">
             <div>
@@ -460,71 +500,106 @@ export default function Dashboard() {
                   type="button"
                   className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
                   onClick={() =>
-                    navigate(projectDetailPath(rankedOpportunities[0].overlap.projectIdA))
+                    navigate(projectDetailPath(savingsSpotlight.overlap.projectIdA))
                   }
                 >
-                  {rankedOpportunities[0].overlap.projectNameA}
+                  {savingsSpotlight.overlap.projectNameA}
                 </button>
                 <span className="text-text-muted">↔</span>
                 <button
                   type="button"
                   className="cursor-pointer border-none bg-transparent p-0 font-semibold text-accent-text hover:underline"
                   onClick={() =>
-                    navigate(projectDetailPath(rankedOpportunities[0].overlap.projectIdB))
+                    navigate(projectDetailPath(savingsSpotlight.overlap.projectIdB))
                   }
                 >
-                  {rankedOpportunities[0].overlap.projectNameB}
+                  {savingsSpotlight.overlap.projectNameB}
                 </button>
               </div>
               <p className="m-0 mb-3 text-[0.8125rem] leading-relaxed text-text-secondary">
-                {rankedOpportunities[0].costImpact.explanation}
+                {savingsSpotlight.costImpact.explanation}
               </p>
               <p className={cn(CLS_DASHBOARD_PANEL_CAPTION, "italic")}>
-                Estimates use conservative industry averages (FERC/EEI data for rural SE US). Actual
-                savings depend on terrain, permitting, and negotiated land costs.
+                {savingsSpotlight.costImpact.sourced
+                  ? "Method: S% (MISO MTEP mobilization + construction management, plus conditional components) × min(DESC cost, estimated GPC cost) × schedule factor T × distance factor D. GPC costs are estimated from DESC unit rates where IRP figures are redacted."
+                  : "Estimates use conservative industry averages (FERC/EEI data for rural SE US). Actual savings depend on terrain, permitting, and negotiated land costs."}
               </p>
             </div>
             <div className="flex flex-col gap-2 rounded-md border border-border bg-surface px-4 py-3">
               <div className="text-[0.8125rem] font-semibold uppercase tracking-widest text-text-muted">
                 Savings breakdown
               </div>
-              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
-                <span className="text-text-secondary">Shared ROW corridor</span>
-                <span className="font-mono font-semibold text-text-primary">
-                  ~{rankedOpportunities[0].costImpact.sharedRowMiles.toFixed(1)} mi
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
-                <span className="text-text-secondary">ROW cost/mile</span>
-                <span className="font-mono text-text-primary">
-                  ${(rankedOpportunities[0].costImpact.rowCostPerMile / 1000).toFixed(0)}k
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
-                <span className="text-text-secondary">
-                  Land savings ({(rankedOpportunities[0].costImpact.rowSavingsPct * 100).toFixed(0)}
-                  % shared)
-                </span>
-                <span className="font-mono font-semibold text-green">
-                  ${(rankedOpportunities[0].costImpact.estimatedSavings / 1000).toFixed(0)}k
-                </span>
-              </div>
-              {rankedOpportunities[0].costImpact.mobilisationSavings > 0 && (
-                <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
-                  <span className="text-text-secondary">Joint mobilisation</span>
-                  <span className="font-mono font-semibold text-green">
-                    ${(rankedOpportunities[0].costImpact.mobilisationSavings / 1000).toFixed(0)}k
-                  </span>
-                </div>
+              {savingsSpotlight.costImpact.sourced ? (
+                <>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                    <span className="text-text-secondary">Schedule factor (T)</span>
+                    <span className="font-mono font-semibold text-text-primary">
+                      {savingsSpotlight.costImpact.sourced.scheduleT}
+                      <span className="ml-1 font-sans font-normal text-text-muted">
+                        ({savingsSpotlight.costImpact.sourced.windowGapDays.toLocaleString()} d window
+                        gap)
+                      </span>
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                    <span className="text-text-secondary">Distance factor (D)</span>
+                    <span className="font-mono text-text-primary">
+                      {savingsSpotlight.costImpact.sourced.distanceD.toFixed(3)}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                    <span className="text-text-secondary">Shareable overhead (S% mid)</span>
+                    <span className="font-mono text-text-primary">
+                      {savingsSpotlight.costImpact.sourced.sPctMid}%
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                    <span className="text-text-secondary">Binding project cost (mid)</span>
+                    <span className="font-mono text-text-primary">
+                      {formatUsdCompact(
+                        Math.min(
+                          savingsSpotlight.costImpact.sourced.costDesc,
+                          savingsSpotlight.costImpact.sourced.costGpcMid,
+                        ),
+                      )}
+                    </span>
+                  </div>
+                  <p className="m-0 text-[0.75rem] leading-snug text-text-muted">
+                    {savingsSpotlight.costImpact.sourced.components.replace(/_/g, " ")} ·{" "}
+                    {savingsSpotlight.costImpact.sourced.costMethod}
+                  </p>
+                  <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2 text-[0.8125rem]">
+                    <span className="font-semibold text-text-primary">Coordination savings (mid)</span>
+                    <span className="font-mono text-[0.95rem] font-bold text-green">
+                      {formatUsdCompact(savingsSpotlight.costImpact.sourced.savingsMid)}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.75rem] text-text-muted">
+                    <span>Low – high band</span>
+                    <span className="font-mono tabular-nums">
+                      {formatUsdRange(
+                        savingsSpotlight.costImpact.sourced.savingsLow,
+                        savingsSpotlight.costImpact.sourced.savingsHigh,
+                      )}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+                    <span className="text-text-secondary">Shared ROW corridor</span>
+                    <span className="font-mono font-semibold text-text-primary">
+                      ~{savingsSpotlight.costImpact.sharedRowMiles.toFixed(1)} mi
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2 text-[0.8125rem]">
+                    <span className="font-semibold text-text-primary">Total estimated savings</span>
+                    <span className="font-mono text-[0.95rem] font-bold text-green">
+                      {formatUsdCompact(savingsSpotlight.costImpact.totalEstimatedSavings)}
+                    </span>
+                  </div>
+                </>
               )}
-              <div className="mt-1 flex items-baseline justify-between gap-2 border-t border-border pt-2 text-[0.8125rem]">
-                <span className="font-semibold text-text-primary">Total estimated savings</span>
-                <span className="font-mono text-[0.95rem] font-bold text-green">
-                  $
-                  {(rankedOpportunities[0].costImpact.totalEstimatedSavings / 1_000_000).toFixed(2)}
-                  M
-                </span>
-              </div>
             </div>
           </div>
         </section>

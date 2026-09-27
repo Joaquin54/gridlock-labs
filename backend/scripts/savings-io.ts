@@ -6,13 +6,21 @@
  * inputs regardless of where they live. Nothing here touches the gitignored
  * context-files/ — the deliverable is reproducible from a clean checkout.
  */
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { parse } from 'csv-parse/sync'
 import type { OverlapPair, RateRow, SavingsProject } from '../src/lib/savings'
 
-const root = new URL('../../', import.meta.url)
+/** Repo root locally; override in Docker (e.g. DOCS_ROOT=/workspace → /workspace/docs/deliverable/…). */
+const repoRoot = (): string =>
+  process.env.DOCS_ROOT?.replace(/\/?$/, '') ??
+  fileURLToPath(new URL('../../', import.meta.url))
 
 const read = async (path: string): Promise<Record<string, string>[]> =>
-  parse(await Bun.file(new URL(path, root)).text(), { columns: true, bom: true }) as Record<string, string>[]
+  parse(await Bun.file(join(repoRoot(), path)).text(), { columns: true, bom: true }) as Record<
+    string,
+    string
+  >[]
 
 const num = (value: string | undefined): number | null => {
   const text = (value ?? '').trim()

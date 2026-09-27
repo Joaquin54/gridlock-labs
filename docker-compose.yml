@@ -10,6 +10,7 @@ services:
       - ./backend/.env
     environment:
       PORT: 3000
+      DOCS_ROOT: /workspace
       # Non-secret and fixed to the frontend's origin, so CORS does not depend on
       # whatever CORS_ORIGINS happens to be in backend/.env.
       CORS_ORIGINS: http://localhost:5173
@@ -17,7 +18,9 @@ services:
       - "3000:3000"
     volumes:
       - ./backend/src:/app/src
+      - ./backend/scripts:/app/scripts
       - ./backend/drizzle.config.ts:/app/drizzle.config.ts
+      - ./docs:/workspace/docs:ro
     restart: unless-stopped
     healthcheck:
       test:

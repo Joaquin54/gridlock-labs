@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 import { ApiError } from "../api/client";
-import { fetchOverlaps, fetchProjects, fetchStats } from "../api/gridlock";
+import { fetchOverlaps, fetchProjects, fetchSavings, fetchStats } from "../api/gridlock";
 import type { ApiStats } from "../api/types";
 import type { ReviewQueuePoint } from "../types/geocode";
 import type {
@@ -29,7 +29,12 @@ import {
   getOverlapsForProject,
   getProjectById,
   getRankedCoordinationOpportunities,
+  getSavingsSpotlightOpportunity,
+  savingsLookupFromReport,
+  savingsTotalsFromReport,
   searchCatalog,
+  type SavingsTotals,
+  type SourcedCostImpact,
 } from "./repository";
 
 type LoadState = "loading" | "ready" | "error";
@@ -48,6 +53,9 @@ type GridlockDataContextValue = {
   search: (filters: SearchFilters) => CatalogSearchResult[];
   dashboardSummary: ReturnType<typeof getDashboardSummary>;
   rankedOpportunities: ReturnType<typeof getRankedCoordinationOpportunities>;
+  savingsByPair: Map<string, SourcedCostImpact>;
+  savingsTotals: SavingsTotals | null;
+  savingsSpotlight: ReturnType<typeof getSavingsSpotlightOpportunity>;
 };
 
 const GridlockDataContext = createContext<GridlockDataContextValue | null>(null);
@@ -59,6 +67,8 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
   const [overlaps, setOverlaps] = useState<ProjectOverlap[]>([]);
   const [queuePoints, setQueuePoints] = useState<ReviewQueuePoint[]>([]);
   const [stats, setStats] = useState<ApiStats | null>(null);
+  const [savingsByPair, setSavingsByPair] = useState<Map<string, SourcedCostImpact>>(new Map());
+  const [savingsTotals, setSavingsTotals] = useState<SavingsTotals | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
 
   const reload = useCallback(() => {
@@ -73,10 +83,11 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
 
     (async () => {
       try {
-        const [features, overlapRows, statsRow] = await Promise.all([
+        const [features, overlapRows, statsRow, savingsReport] = await Promise.all([
           fetchProjects(),
           fetchOverlaps(),
           fetchStats(),
+          fetchSavings().catch(() => null),
         ]);
         if (cancelled) return;
         const overlapModels = overlapsFromApi(overlapRows);
@@ -86,6 +97,13 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
         setProjects(projectModels);
         setQueuePoints(points);
         setStats(statsRow);
+        if (savingsReport) {
+          setSavingsByPair(savingsLookupFromReport(savingsReport));
+          setSavingsTotals(savingsTotalsFromReport(savingsReport));
+        } else {
+          setSavingsByPair(new Map());
+          setSavingsTotals(null);
+        }
         setLoadState("ready");
       } catch (err) {
         if (cancelled) return;
@@ -132,8 +150,13 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
   );
 
   const rankedOpportunities = useMemo(
-    () => getRankedCoordinationOpportunities(overlaps),
-    [overlaps],
+    () => getRankedCoordinationOpportunities(overlaps, savingsByPair),
+    [overlaps, savingsByPair],
+  );
+
+  const savingsSpotlight = useMemo(
+    () => getSavingsSpotlightOpportunity(rankedOpportunities),
+    [rankedOpportunities],
   );
 
   const value = useMemo(
@@ -151,6 +174,9 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
       search,
       dashboardSummary,
       rankedOpportunities,
+      savingsByPair,
+      savingsTotals,
+      savingsSpotlight,
     }),
     [
       loadState,
@@ -166,6 +192,9 @@ export function GridlockDataProvider({ children }: { children: ReactNode }) {
       search,
       dashboardSummary,
       rankedOpportunities,
+      savingsByPair,
+      savingsTotals,
+      savingsSpotlight,
     ],
   );
 

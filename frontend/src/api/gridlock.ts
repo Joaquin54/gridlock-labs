@@ -1,5 +1,11 @@
 import { apiGet } from "./client";
-import type { ApiOverlap, ApiProjectCollection, ApiProjectFeature, ApiStats } from "./types";
+import type {
+  ApiOverlap,
+  ApiProjectCollection,
+  ApiProjectFeature,
+  ApiSavingsReport,
+  ApiStats,
+} from "./types";
 
 export async function fetchProjects(): Promise<ApiProjectFeature[]> {
   const collection = await apiGet<ApiProjectCollection>("/projects");
@@ -16,4 +22,8 @@ export async function fetchOverlaps(): Promise<ApiOverlap[]> {
 
 export async function fetchStats(): Promise<ApiStats> {
   return apiGet<ApiStats>("/stats");
+}
+
+export async function fetchSavings(): Promise<ApiSavingsReport> {
+  return apiGet<ApiSavingsReport>("/savings");
 }
