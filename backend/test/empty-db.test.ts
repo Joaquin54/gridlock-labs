@@ -76,6 +76,7 @@ describe('a database whose schema was never pushed', () => {
     await bare.execute(sql`drop view project_geo`)
     expect(await findMissingRelations(bare)).toEqual(['project_geo'])
 
+    await bare.execute(sql`drop view point_usage`)
     await bare.execute(sql`drop table project_points`)
     await bare.execute(sql`drop table projects`)
     expect(await findMissingRelations(bare)).toEqual([
