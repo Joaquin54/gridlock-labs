@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { NavLink } from "react-router-dom";
+import sperryLogo from "../../assets/sperrylogo.png";
 import { useTheme } from "../../hooks/useTheme";
 import { cn } from "../../utils/cn";
 
@@ -25,10 +26,13 @@ export default function AppShell({ children, flushMain }: AppShellProps) {
       <header className="bg-surface border-b border-border grid grid-cols-[1fr_auto_1fr] items-center px-4 sm:px-6 h-[50px] gap-4">
         <NavLink
           to="/"
-          className="flex items-center gap-[0.4rem] font-semibold text-[15px] text-text-primary no-underline tracking-[0.01em] justify-self-start hover:text-accent"
+          className="flex items-center no-underline justify-self-start rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
-          <div className="w-[9px] h-[9px] rounded-full bg-accent shrink-0" />
-          <span className="truncate">Gridlock</span>
+          <img
+            src={sperryLogo}
+            alt="Sperry technologies"
+            className="h-9 w-auto max-w-[min(100%,220px)] object-contain object-left"
+          />
         </NavLink>
 
         <nav className="flex items-center justify-center gap-1" aria-label="Main navigation">

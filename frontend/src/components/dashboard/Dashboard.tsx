@@ -24,6 +24,7 @@ import {
   getUniqueProjectCountsByUtility,
   getUtilitySplit,
   getVoltageBreakdown,
+  voltageClassLegendSortKey,
   getWorkTypeBreakdown,
 } from "../../data/geocodeRepository";
 import {
@@ -85,6 +86,16 @@ function pieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
   );
 }
 
+type WorkTypeBarRow = { name: WorkType; gpc: number; desc: number };
+
+function workTypeBarRowFromClick(data: unknown): WorkTypeBarRow | undefined {
+  if (!data || typeof data !== "object") return undefined;
+  const withPayload = data as { payload?: Partial<WorkTypeBarRow> };
+  const row = withPayload.payload ?? (data as Partial<WorkTypeBarRow>);
+  if (!row.name || typeof row.name !== "string") return undefined;
+  return row as WorkTypeBarRow;
+}
+
 function voltagePieLegendLabel(value: string, entry: PieLegendEntry): ReactNode {
   const count = entry.payload?.count ?? entry.payload?.value;
   if (count == null) return value;
@@ -126,10 +137,10 @@ export default function Dashboard() {
   );
 
   const handleWorkTypeBarClick = useCallback(
-    (bar: { payload?: { name?: WorkType } }) => {
-      const workType = bar.payload?.name;
-      if (!workType) return;
-      openWorkTypeSearch(workType);
+    (data: unknown) => {
+      const row = workTypeBarRowFromClick(data);
+      if (!row?.name) return;
+      openWorkTypeSearch(row.name);
     },
     [openWorkTypeSearch],
   );
@@ -248,7 +259,7 @@ export default function Dashboard() {
                     <Legend
                       {...CHART_LEGEND_BOTTOM}
                       height={28}
-                      itemSorter={null}
+                      itemSorter={(item) => voltageClassLegendSortKey(String(item.value ?? ""))}
                       wrapperStyle={{
                         ...CHART_LEGEND_BOTTOM.wrapperStyle,
                         paddingTop: 4,
