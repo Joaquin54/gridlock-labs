@@ -118,7 +118,7 @@ const NEW_SUBSTATION_RULE = 'guide values; Dawson (DESC_6859, $93.5M) excluded a
 const CONDUCTOR_RE = /(\d{3,4}(?:\.\d)?)\s*(?:C7\s*)?(ACSR|ACSS|ACCR|ACCS|ACAR|AAC)/gi
 
 /** Round half to even (Python 3 `round`), so per-row values and totals match the reference. */
-function roundHalfEven(value: number): number {
+export function roundHalfEven(value: number): number {
   const floor = Math.floor(value)
   const frac = value - floor
   if (frac < 0.5) return floor

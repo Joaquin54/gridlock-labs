@@ -64,6 +64,9 @@ S% is the sum of the components that apply to a pair:
 | Bulk materials | 1 / 2 / 3 % | Both descriptions name the same conductor (e.g. 1272 ACSR, 1351 ACSS) | Assumption, not sourced |
 | Outages, permits, right-of-way | 1 / 2 / 4 % | Shared substation or corridor | Assumption, not sourced |
 
+Bulk materials applies to 0 pairs in the current data: the DESC projects specify
+1272 ACSR and the GPC projects 1351 ACSS, so no pair names the same conductor.
+
 So every pair with overlapping schedules starts from a base **S% = 5 / 9 / 14 %**
 (mobilization plus construction management). The other two components only stack on top
 when their condition is met.

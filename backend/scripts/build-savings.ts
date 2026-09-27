@@ -14,8 +14,13 @@
  * regenerate the deliverable from a clean checkout. See docs/deliverable/savings/README.md.
  */
 import { toCsv } from '../src/lib/csv'
-import { computeSavings } from '../src/lib/savings'
+import { computeSavings, roundHalfEven } from '../src/lib/savings'
 import { loadSavingsInputs } from './savings-io'
+
+/** The committed CSVs are LF; toCsv emits RFC 4180 CRLF for the export routes. */
+function toLf(text: string): string {
+  return text.replaceAll('\r\n', '\n')
+}
 
 async function main(): Promise<void> {
   const { pairs, projects, reference } = await loadSavingsInputs()
@@ -24,26 +29,36 @@ async function main(): Promise<void> {
 
   const rateRows = report.unitRates.table.map((entry) => [
     entry.rate,
-    entry.triple[0],
-    entry.triple[1],
-    entry.triple[2],
+    roundHalfEven(entry.triple[0]),
+    roundHalfEven(entry.triple[1]),
+    roundHalfEven(entry.triple[2]),
     entry.rule,
     entry.projectIds.join(', '),
   ])
   await Bun.write(
     new URL('unit_rates.csv', outDir),
-    toCsv(['rate', 'low', 'mid', 'high', 'rule', 'projects'], rateRows),
+    toLf(toCsv(['rate', 'low', 'mid', 'high', 'rule', 'projects'], rateRows)),
   )
 
   // Every project carries cost_source (published vs estimated) and cost_method.
   const costRows = projects.map((p) => {
     const cost = report.costs.get(p.projectId)
     if (!cost) throw new Error(`no cost for ${p.projectId}`)
-    return [p.projectId, p.utility, cost.cost[0], cost.cost[1], cost.cost[2], cost.source, cost.method]
+    return [
+      p.projectId,
+      p.utility,
+      roundHalfEven(cost.cost[0]),
+      roundHalfEven(cost.cost[1]),
+      roundHalfEven(cost.cost[2]),
+      cost.source,
+      cost.method,
+    ]
   })
   await Bun.write(
     new URL('project_costs.csv', outDir),
-    toCsv(['project_id', 'utility', 'cost_low', 'cost_mid', 'cost_high', 'cost_source', 'cost_method'], costRows),
+    toLf(
+      toCsv(['project_id', 'utility', 'cost_low', 'cost_mid', 'cost_high', 'cost_source', 'cost_method'], costRows),
+    ),
   )
 
   const savingsRows = report.rows.map((row) => [
@@ -70,30 +85,32 @@ async function main(): Promise<void> {
   ])
   await Bun.write(
     new URL('savings_by_pair.csv', outDir),
-    toCsv(
-      [
-        'overlap_id',
-        'project_id_desc',
-        'project_id_gpc',
-        'distance_mi',
-        'gap_days',
-        'cost_desc',
-        'cost_gpc_low',
-        'cost_gpc_mid',
-        'cost_gpc_high',
-        'cost_method',
-        'T',
-        'D',
-        'components',
-        'S_pct_low',
-        'S_pct_mid',
-        'S_pct_high',
-        'savings_low',
-        'savings_mid',
-        'savings_high',
-        'in_realistic_headline',
-      ],
-      savingsRows,
+    toLf(
+      toCsv(
+        [
+          'overlap_id',
+          'project_id_desc',
+          'project_id_gpc',
+          'distance_mi',
+          'gap_days',
+          'cost_desc',
+          'cost_gpc_low',
+          'cost_gpc_mid',
+          'cost_gpc_high',
+          'cost_method',
+          'T',
+          'D',
+          'components',
+          'S_pct_low',
+          'S_pct_mid',
+          'S_pct_high',
+          'savings_low',
+          'savings_mid',
+          'savings_high',
+          'in_realistic_headline',
+        ],
+        savingsRows,
+      ),
     ),
   )
 
