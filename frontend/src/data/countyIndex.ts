@@ -5,7 +5,7 @@ import type { Topology } from "topojson-specification";
 import type { ReviewQueuePoint } from "../types/geocode";
 import type { GridlockProject } from "../types/project";
 
-export const COUNTIES_GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json";
+export const COUNTIES_GEO_URL = "/counties-10m.json";
 
 export type CountyOption = {
   fips: string;

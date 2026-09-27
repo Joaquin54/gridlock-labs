@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from "react-simple-maps";
 import { feature as topoFeature } from "topojson-client";
 import type { Topology } from "topojson-specification";
+import { getRankedCoordinationOpportunities } from "../../data/repository";
 import type { ReviewQueuePoint } from "../../types/geocode";
 import { confidenceMarkerFill, utilityKeyFromQueueCode } from "../../types/geocode";
 import type { GridlockProject } from "../../types/project";
@@ -27,9 +28,20 @@ import {
 import ConfidenceBadge from "../shared/ConfidenceBadge";
 import TaskBadge from "../shared/TaskBadge";
 import UtilityBadge from "../shared/UtilityBadge";
+import { MapWater, PlaceLabels, ScaleBar } from "./MapFurniture";
+import OverlapLinkLayer, {
+  buildOverlapLinks,
+  indexLinksByProject,
+  OverlapBadgeLayer,
+} from "./OverlapLinkLayer";
+import ProjectLineLayer, {
+  APPROXIMATE_DASH,
+  buildCorridors,
+  indexCorridorsByPoint,
+} from "./ProjectLineLayer";
 
-const STATES_GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json";
-const COUNTIES_GEO_URL = "https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json";
+const STATES_GEO_URL = "/states-10m.json";
+const COUNTIES_GEO_URL = "/counties-10m.json";
 
 const HIGHLIGHT_STATES = new Set(["South Carolina", "Georgia"]);
 
@@ -74,6 +86,9 @@ const MAP_DEFAULT_POSITION: MapPosition = {
   coordinates: [-82.25, 32.85],
   zoom: 6.25,
 };
+
+const MAP_WIDTH = 800;
+const MAP_HEIGHT = 600;
 
 const MAP_MIN_ZOOM = 1.2;
 const MAP_MAX_ZOOM = 24;
@@ -170,6 +185,8 @@ export default function RegionalProjectMap({
   const [selectedCountyFips, setSelectedCountyFips] = useState<string | null>(null);
   const [countyCounts, setCountyCounts] = useState<Map<string, number>>(() => new Map());
   const [mapPosition, setMapPosition] = useState<MapPosition>(startPosition);
+  /** Ranked pair whose numbered badge is under the cursor. */
+  const [hoveredPairId, setHoveredPairId] = useState<string | null>(null);
 
   useEffect(() => {
     setMapPosition({ coordinates: [startLng, startLat], zoom: startZoom });
@@ -184,6 +201,40 @@ export default function RegionalProjectMap({
     () =>
       (geocodePoints ?? []).filter((p) => p.lat != null && p.lon != null && !Number.isNaN(p.lat)),
     [geocodePoints],
+  );
+
+  const corridors = useMemo(() => buildCorridors(mappableGeocode), [mappableGeocode]);
+  const corridorByPoint = useMemo(() => indexCorridorsByPoint(corridors), [corridors]);
+  const focusedCorridor = focusedPointId ? (corridorByPoint.get(focusedPointId) ?? null) : null;
+
+  const overlapLinks = useMemo(
+    () => buildOverlapLinks(getRankedCoordinationOpportunities(), mappableGeocode),
+    [mappableGeocode],
+  );
+  const linksByProject = useMemo(() => indexLinksByProject(overlapLinks), [overlapLinks]);
+  /** The hovered point belongs to one project; its overlap pairs stay lit. */
+  const focusedProjectId = useMemo(() => {
+    const hovered = focusedPointId
+      ? mappableGeocode.find((p) => p.id === focusedPointId)
+      : undefined;
+    return hovered ? `${hovered.utility}_${hovered.projectKey}` : null;
+  }, [focusedPointId, mappableGeocode]);
+  const focusedProjectIds = useMemo(
+    () => (focusedProjectId ? new Set([focusedProjectId]) : new Set<string>()),
+    [focusedProjectId],
+  );
+  /** Ranked pairs the hovered project sits in, best first. */
+  const focusedPairs = useMemo(
+    () =>
+      focusedProjectId
+        ? [...(linksByProject.get(focusedProjectId) ?? [])].sort((a, b) => a.rank - b.rank)
+        : [],
+    [focusedProjectId, linksByProject],
+  );
+  /** Hovering a numbered badge shows that pair instead of a single point. */
+  const hoveredPair = useMemo(
+    () => (hoveredPairId ? (overlapLinks.find((l) => l.id === hoveredPairId) ?? null) : null),
+    [hoveredPairId, overlapLinks],
   );
 
   const mappableProjects = useMemo(
@@ -338,10 +389,11 @@ export default function RegionalProjectMap({
           ) : null}
           <ComposableMap
             projection="geoAlbersUsa"
-            width={800}
-            height={600}
+            width={MAP_WIDTH}
+            height={MAP_HEIGHT}
             style={{ width: "100%", height: "100%" }}
           >
+            <MapWater width={MAP_WIDTH} height={MAP_HEIGHT} />
             <ZoomableGroup
               center={mapPosition.coordinates}
               zoom={mapPosition.zoom}
@@ -471,6 +523,21 @@ export default function RegionalProjectMap({
                 }
               </Geographies>
 
+              {useGeocode ? (
+                <ProjectLineLayer
+                  corridors={corridors}
+                  focusedCorridorId={focusedCorridor?.id ?? null}
+                />
+              ) : null}
+
+              {useGeocode ? (
+                <OverlapLinkLayer
+                  links={overlapLinks}
+                  focusedProjectIds={focusedProjectIds}
+                  hoveredPairId={hoveredPairId}
+                />
+              ) : null}
+
               {useGeocode
                 ? mappableGeocode.map((p) => {
                     const active = p.id === focusedPointId;
@@ -480,9 +547,6 @@ export default function RegionalProjectMap({
                         key={p.id}
                         coordinates={[p.lon as number, p.lat as number]}
                         onMouseEnter={() => setFocusedPointId(p.id)}
-                        onClick={() => {
-                          if (p.googleMapsUrl) window.open(p.googleMapsUrl, "_blank", "noopener");
-                        }}
                       >
                         <circle
                           r={r}
@@ -490,7 +554,7 @@ export default function RegionalProjectMap({
                           stroke={MAP_DEFAULT_STROKE}
                           strokeWidth={1}
                           vectorEffect="non-scaling-stroke"
-                          className="cursor-pointer transition-[r] duration-150"
+                          className="cursor-default transition-[r] duration-150"
                         />
                       </Marker>
                     );
@@ -503,7 +567,6 @@ export default function RegionalProjectMap({
                         key={p.id}
                         coordinates={[p.center.lon as number, p.center.lat as number]}
                         onMouseEnter={() => setFocusedPointId(p.id)}
-                        onClick={() => onSelectProject?.(p.id)}
                       >
                         <circle
                           r={r}
@@ -511,12 +574,24 @@ export default function RegionalProjectMap({
                           stroke={MAP_DEFAULT_STROKE}
                           strokeWidth={1}
                           vectorEffect="non-scaling-stroke"
-                          className="cursor-pointer transition-[r] duration-150"
+                          className="cursor-default transition-[r] duration-150"
                         />
                       </Marker>
                     );
                   })}
+
+              <PlaceLabels zoom={mapPosition.zoom} />
+
+              {useGeocode ? (
+                <OverlapBadgeLayer
+                  links={overlapLinks}
+                  zoom={mapPosition.zoom}
+                  hoveredPairId={hoveredPairId}
+                  onHoverPair={setHoveredPairId}
+                />
+              ) : null}
             </ZoomableGroup>
+            <ScaleBar zoom={mapPosition.zoom} x={26} y={MAP_HEIGHT - 26} />
           </ComposableMap>
         </div>
         <p className="m-0 mt-2 text-[0.6875rem] leading-snug text-text-muted">
@@ -533,16 +608,89 @@ export default function RegionalProjectMap({
             </>
           )}
         </p>
+        {useGeocode && corridors.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.6875rem] leading-none text-text-muted">
+            <span className="flex items-center gap-1.5">
+              <svg width="22" height="6" aria-hidden="true">
+                <title>Solid line</title>
+                <line
+                  x1="1"
+                  y1="3"
+                  x2="21"
+                  y2="3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+              Solid — every endpoint geocoded with confidence
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="22" height="6" aria-hidden="true">
+                <title>Dashed line</title>
+                <line
+                  x1="1"
+                  y1="3"
+                  x2="21"
+                  y2="3"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray={APPROXIMATE_DASH}
+                  strokeLinecap="round"
+                />
+              </svg>
+              Dashed — approximate endpoint, not a surveyed route
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="14" height="14" aria-hidden="true">
+                <title>Ranked overlap badge</title>
+                <path d="M7,1 A6,6 0 0,0 7,13 Z" fill="var(--dominion)" />
+                <path d="M7,1 A6,6 0 0,1 7,13 Z" fill="var(--georgia)" />
+              </svg>
+              Numbered pairs — top {overlapLinks.length} coordination opportunities. Each joins{" "}
+              <span className="font-semibold text-dominion">Dominion</span> to{" "}
+              <span className="font-semibold text-georgia">Georgia Power</span>
+            </span>
+            <span>Color and thickness show voltage class</span>
+            <span className="font-semibold text-text-secondary">
+              Hover any point to reveal its details
+            </span>
+          </div>
+        ) : null}
         <div
           className={cn(
             "mt-2 min-h-[5rem] box-border rounded-md border px-[0.875rem] py-2 text-[0.8125rem]",
-            focusedPointId
+            focusedPointId || hoveredPair
               ? "border-border bg-surface shadow-md"
               : "border-border/50 bg-surface-hover/40",
           )}
           aria-live="polite"
         >
-          {focusedPointId ? (
+          {hoveredPair ? (
+            <>
+              <div className="mb-1 text-[0.6875rem] font-semibold leading-none text-text-secondary">
+                Project coordination #{hoveredPair.rank}
+                {hoveredPair.distanceMi != null ? ` · ${hoveredPair.distanceMi} mi apart` : ""}
+                {hoveredPair.timeGapDays != null
+                  ? ` · ${Math.abs(hoveredPair.timeGapDays)} days`
+                  : ""}
+              </div>
+              <div className="flex items-center gap-1.5 text-[0.75rem] leading-snug">
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: hoveredPair.colorA }}
+                />
+                <span className="truncate text-text-primary">{hoveredPair.projectNameA}</span>
+              </div>
+              <div className="mt-0.5 flex items-center gap-1.5 text-[0.75rem] leading-snug">
+                <span
+                  className="size-2 shrink-0 rounded-full"
+                  style={{ backgroundColor: hoveredPair.colorB }}
+                />
+                <span className="truncate text-text-primary">{hoveredPair.projectNameB}</span>
+              </div>
+            </>
+          ) : focusedPointId ? (
             (() => {
               if (useGeocode) {
                 const p = mappableGeocode.find((x) => x.id === focusedPointId);
@@ -560,6 +708,55 @@ export default function RegionalProjectMap({
                     <p className="m-0 mt-0.5 min-h-[1.125rem] truncate text-[0.75rem] text-text-secondary">
                       {p.projectName}
                     </p>
+                    <p className="m-0 mt-0.5 min-h-[1rem] truncate text-[0.6875rem] text-text-muted">
+                      {focusedCorridor ? (
+                        <>
+                          {focusedCorridor.voltage} corridor ·{" "}
+                          {focusedCorridor.endpointNames[0]} → {focusedCorridor.endpointNames[1]}
+                          {focusedCorridor.approximate ? " · approximate" : ""}
+                        </>
+                      ) : (
+                        "Single located point — no corridor drawn"
+                      )}
+                    </p>
+                    {p.googleMapsUrl ? (
+                      <a
+                        href={p.googleMapsUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-[0.6875rem] font-medium text-accent-text underline underline-offset-2 hover:text-accent-hover"
+                      >
+                        Open this location in Google Maps
+                      </a>
+                    ) : null}
+                    {focusedPairs.length > 0 ? (
+                      <div className="mt-1.5 border-t border-border/60 pt-1.5">
+                        {focusedPairs.map((pair) => {
+                          // Only the other side is news; the hovered project is named above.
+                          const hoveringA = focusedProjectId === pair.projectIdA;
+                          const partnerName = hoveringA ? pair.projectNameB : pair.projectNameA;
+                          const partnerColor = hoveringA ? pair.colorB : pair.colorA;
+                          return (
+                            <div key={pair.id} className="mb-1.5 last:mb-0">
+                              <div className="mb-0.5 text-[0.6875rem] font-semibold leading-none text-text-secondary">
+                                Project coordination #{pair.rank}
+                                {pair.distanceMi != null ? ` · ${pair.distanceMi} mi apart` : ""}
+                                {pair.timeGapDays != null
+                                  ? ` · ${Math.abs(pair.timeGapDays)} days`
+                                  : ""}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-[0.75rem] leading-snug">
+                                <span
+                                  className="size-2 shrink-0 rounded-full"
+                                  style={{ backgroundColor: partnerColor }}
+                                />
+                                <span className="truncate text-text-primary">{partnerName}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </>
                 );
               }
@@ -574,6 +771,15 @@ export default function RegionalProjectMap({
                   <p className="m-0 min-h-[1.25rem] truncate font-medium leading-snug text-text-primary">
                     {p.name}
                   </p>
+                  {onSelectProject && p.id !== selectedProjectId ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectProject(p.id)}
+                      className="mt-1 cursor-pointer border-0 bg-transparent p-0 text-[0.6875rem] font-medium text-accent-text underline underline-offset-2 hover:text-accent-hover"
+                    >
+                      Open this project
+                    </button>
+                  ) : null}
                 </>
               );
             })()

@@ -7,11 +7,12 @@ import type {
 } from "../types/project";
 import { getPilotProjectCountyFips } from "./countyIndex";
 import { classifyWorkType, searchReviewQueuePoints } from "./geocodeRepository";
+import overlapSeed from "./overlaps.json";
 import seed from "./seed.json";
 
 type RawProject = Omit<GridlockProject, "utilityKey">;
 
-function utilityKeyFromName(utility: string): UtilityKey {
+export function utilityKeyFromName(utility: string): UtilityKey {
   if (utility.toLowerCase().includes("dominion")) return "dominion";
   return "georgia-power";
 }
@@ -24,7 +25,9 @@ function normalizeProject(raw: RawProject): GridlockProject {
 }
 
 const projects: GridlockProject[] = seed.projects.map((p) => normalizeProject(p as RawProject));
-const overlaps: ProjectOverlap[] = seed.overlaps as ProjectOverlap[];
+// The full deliverable overlap table, not the 6-row sample in seed.json, so the
+// ranked list and the map report the same analysis.
+const overlaps: ProjectOverlap[] = overlapSeed.overlaps as ProjectOverlap[];
 
 const projectById = new Map(projects.map((p) => [p.id, p]));
 

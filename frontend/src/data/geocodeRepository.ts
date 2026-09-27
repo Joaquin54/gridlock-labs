@@ -165,6 +165,31 @@ function classifyVoltage(kv: number): VoltageClass {
   return "Other";
 }
 
+export const VOLTAGE_COLORS: Record<VoltageClass, string> = {
+  "500 kV": "var(--voltage-500)",
+  "230 kV": "var(--voltage-230)",
+  "115 kV": "var(--voltage-115)",
+  "46 kV": "var(--voltage-46)",
+  Other: "var(--voltage-other)",
+};
+
+/** Highest voltage named in a project title. The map weights corridors by it. */
+export function voltageClassForProjectName(projectName: string): VoltageClass {
+  const rank: Record<VoltageClass, number> = {
+    "500 kV": 4,
+    "230 kV": 3,
+    "115 kV": 2,
+    "46 kV": 1,
+    Other: 0,
+  };
+  let best: VoltageClass = "Other";
+  for (const match of projectName.matchAll(VOLTAGE_RE)) {
+    const cls = classifyVoltage(Number(match[1]));
+    if (rank[cls] > rank[best]) best = cls;
+  }
+  return best;
+}
+
 export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number; fill: string }> {
   const counts = new Map<VoltageClass, number>();
   for (const p of points) {
@@ -178,17 +203,10 @@ export function getVoltageBreakdown(): Array<{ name: VoltageClass; count: number
       counts.set(cls, (counts.get(cls) ?? 0) + 1);
     }
   }
-  const fills: Record<VoltageClass, string> = {
-    "500 kV": "var(--voltage-500)",
-    "230 kV": "var(--voltage-230)",
-    "115 kV": "var(--voltage-115)",
-    "46 kV": "var(--voltage-46)",
-    Other: "var(--voltage-other)",
-  };
   const order: VoltageClass[] = ["115 kV", "230 kV", "500 kV", "46 kV", "Other"];
   const rows = order
     .filter((cls) => (counts.get(cls) ?? 0) > 0)
-    .map((cls) => ({ name: cls, count: counts.get(cls) ?? 0, fill: fills[cls] }));
+    .map((cls) => ({ name: cls, count: counts.get(cls) ?? 0, fill: VOLTAGE_COLORS[cls] }));
 
   const total = rows.reduce((sum, row) => sum + row.count, 0);
   const otherRow = rows.find((row) => row.name === "Other");
