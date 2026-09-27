@@ -1,20 +1,24 @@
-# Dev stack. No local Postgres: DATABASE_URL points at the hosted Tiger Data
-# instance (append ?sslmode=require). Unset DATABASE_URL -> backend falls back to
-# in-memory PGlite with fixture data.
+# Dev stack. No local Postgres: the backend reads DATABASE_URL from backend/.env
+# (gitignored, append ?sslmode=require) and talks to the hosted Tiger Data instance.
+# For a no-database run, layer docker-compose.offline.yml — see the README.
 services:
   backend:
     build:
       context: ./backend
       target: dev
+    env_file:
+      - ./backend/.env
     environment:
       PORT: 3000
-      DATABASE_URL: ${DATABASE_URL:-}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+      # Non-secret and fixed to the frontend's origin, so CORS does not depend on
+      # whatever CORS_ORIGINS happens to be in backend/.env.
+      CORS_ORIGINS: http://localhost:5173
     ports:
       - "3000:3000"
     volumes:
       - ./backend/src:/app/src
       - ./backend/drizzle.config.ts:/app/drizzle.config.ts
+    restart: unless-stopped
     healthcheck:
       test:
         - CMD
@@ -31,6 +35,8 @@ services:
       context: ./frontend
       target: dev
     environment:
+      # The browser runs on the host, so it reaches the backend through the
+      # published port — never through the compose service name.
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000}
     ports:
       - "5173:5173"
@@ -38,6 +44,7 @@ services:
       - ./frontend/src:/app/src
       - ./frontend/index.html:/app/index.html
       - ./frontend/vite.config.ts:/app/vite.config.ts
+    restart: unless-stopped
     depends_on:
       backend:
-        condition: service_started
+        condition: service_healthy

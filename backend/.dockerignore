@@ -1,7 +1,10 @@
 node_modules
 test
+scripts
+db
 drizzle
 .env
-.env-example
+.env.*
+!.env-example
 .git
 .DS_Store

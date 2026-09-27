@@ -1,0 +1,11 @@
+# No-database run: layer this over docker-compose.yml to force the backend onto
+# its in-memory PGlite fixture. `environment` beats `env_file`, and Bun only
+# treats DATABASE_URL as unset when it is explicitly empty.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.offline.yml up
+#
+# Never run this at the same time as the Tiger stack — both publish port 3000.
+services:
+  backend:
+    environment:
+      DATABASE_URL: ""
