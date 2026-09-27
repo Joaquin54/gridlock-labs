@@ -21,7 +21,7 @@ Backend (`cd backend`):
 
 No test framework is configured in either package. Backend has no lint script or biome config yet.
 
-Docker/docker-compose is the planned dev environment but no compose file exists yet. No local Postgres: DB is hosted on Tiger Data via `DATABASE_URL` (`?sslmode=require`).
+Docker dev env: `docker compose up` (root `docker-compose.yml`) runs `backend` on :3000 and `frontend` on :5173, both from the `dev` target of their Dockerfile with `src/` bind-mounted for hot reload. Each Dockerfile also has a `prod` target (backend: `bun src/index.ts`; frontend: vite build served by nginx with SPA fallback). Envs come from root `.env` (see `.env-example`). No local Postgres: DB is hosted on Tiger Data via `DATABASE_URL` (`?sslmode=require`); unset it and the backend falls back to in-memory PGlite fixture data. Push schema in-container with `docker compose exec backend bunx drizzle-kit push`.
 
 ## Architecture
 
@@ -124,6 +124,7 @@ Unchanged: what was done, key decisions, what was verified and how, stated assum
 - Fail fast on scope creep — stop and ask rather than silently consuming the window.
 
 ## Global Code Standards (unchanged)
+- Don't: Try to Create Dedicated HEAD Handlers
 - 2-space indentation. Explicit types always.
 - React: prefer functional components.
 - Never introduce race conditions. Always memory-safe.
