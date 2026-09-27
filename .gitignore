@@ -9,3 +9,4 @@ node_modules
 /frontend/.DS_Store
 /backend/bun.lock
 /backend/node_modules
+.DS_Store
